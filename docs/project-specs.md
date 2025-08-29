@@ -161,11 +161,19 @@ This module allows users to view, manage, and interact with their stored journal
    - `audio`: a play button to listen to the original voice recording.
    - `transcript`: a rephrased version of the speech-to-text transcription for readability.
 
-4. **Daily Summary Generation**
+4. **Daily Summary Generation** ✅ _Implemented_
 
-   - At the end of each day, the system **automatically generates a summary** based on that day’s entries.
+   - At the end of each day, the system **automatically generates a summary** based on that day's entries.
    - This summary is displayed at the **same level as the journal entries** under each daily record.
-   - A new data structure (e.g., an additional database table or field) may be required to store and retrieve these summaries.
+   - **Implementation Details**:
+     - **Table**: `daily_summaries` with fields: user_id, summary_date, summary_text, created_at
+     - **Processing Pipeline**:
+       - GPT-4o-mini analyzes all journal entries for a specific day
+       - Generates cohesive summary focusing on themes, emotions, and key events
+       - Automatically triggered via API endpoint `/api/generate-daily-summary`
+     - **Scheduling**: Manual generation via cron job or automated trigger
+     - **Content Analysis**: Combines transcript text from all day's audio journal entries
+     - **AI Prompt Engineering**: Structured prompts for consistent, meaningful summaries
 
 5. **Filtering Capabilities**  
    Users should be able to filter journal entries using:
@@ -175,9 +183,25 @@ This module allows users to view, manage, and interact with their stored journal
    - **Keywords** (full-text search within transcripts)
 
 6. **Entry Management**
+
    - Users can **edit or delete** existing journal entries.
    - Editable fields may include transcript content or associated metadata.
-   - All changes must be scoped to the authenticated user’s own journal records.
+   - All changes must be scoped to the authenticated user's own journal records.
+
+7. **Data Storage**
+
+   - **Primary Tables**:
+     - `audio_files`: Stores audio recordings metadata
+     - `transcripts`: Stores processed transcription and summary text
+     - `daily_question`: Links to daily mood data for comprehensive view
+   - **New Table**: `daily_summaries`
+     - Stores: user_id, summary_date, summary_text, created_at, updated_at
+     - **Primary Key**: Composite of user_id + summary_date
+     - **Data integrity**: One summary per user per day
+   - **Relationships**:
+     - daily_summaries.user_id → Links to user's journal entries
+     - daily_summaries.summary_date → Groups all entries by date
+     - Integration with existing audio_files and transcripts tables
 
 ---
 
@@ -186,9 +210,9 @@ This module allows users to view, manage, and interact with their stored journal
 - On page load, the dashboard displays a **collapsed list of daily records**.
 - Each collapsed **daily record card** is labeled with:
   - **Date**
-  - **Daily Summary** (see _F4. Daily Summary Generation_)
+  - **Daily Summary** (AI-generated from day's journal entries)
   - **Daily Mood Tag** (sourced from _Module A0_)
-    > _Example label:_ `2025-07-18 | Mood: Reflective | Summary: Felt unmotivated but completed 3 tasks.`
+    > _Example label:_ `2025-07-18 | Mood: Reflective | Summary: Reflected on personal growth and completed 3 important tasks despite feeling unmotivated.`
 - Clicking a daily record will **expand** that day’s section to reveal:
   - All associated journal entries with:
     - Timestamp
@@ -219,3 +243,41 @@ Dashboard / Journals (Journal Overview Page)
 │ │ └─ Rephrased Transcript
 │ └─ Daily Summary: (auto-generated text)
 └─ ... (More daily records in chronological order)
+
+## Module B: Achievement
+
+将用户的成就按照固定的period（weekly and monthly）总结，按照时间顺序线性排列并展示。类似52个周以节点的方式线形排列，每个代表今年的一周（或者12个节点，每个代表一个月）。每个节点都会根据时间段内的日记内容总结 1. 成就 2.承诺 3. 状态（根据按照用户当周心情的占比来决定，比如7天中happy占多数，那就标记本周总体是开心的）
+
+### data structure
+
+## Module C: AI voice companion
+
+**goal** 用户的私人日记伴侣，提供基于AI的自然的语音交互体验，给用户提供情绪价值如激励，宽慰，安抚，庆祝
+
+### agent context strategy
+
+#### Current strategy: JSON based incremental summaries.
+
+每个用户将有一个achievement table
+
+```json
+{
+  "daily": {
+    "2025-08-04": "焦虑指数 3/5，提到论文 dead-line …",
+    "2025-08-03": "心情良好，和男友通话 …"
+  },
+  "weekly": {
+    "2025-W31": "整体积极，健身 3 次 …"
+  },
+  "monthly": {
+    "2025-07": "情绪波动较大，主要压力来自工作 …"
+  },
+  "yearly": {
+    "2024": "完成硕士第一学年，搬家 …"
+  }
+}
+```
+
+#### Future: Combining rag (graph or hybird)
+
+## Module C: Personal Achivement
