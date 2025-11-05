@@ -12,8 +12,48 @@
       "Bash(pnpm lint:*)",
       "Bash(find:*)",
       "WebFetch(domain:platform.openai.com)",
-      "Bash(pnpm supabase:generate-types:*)"
+      "Bash(pnpm supabase:generate-types:*)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Read(//Users/wangchanghao/Projects/AIJournal/**)",
+      "Bash(mkdir:*)",
+      "WebSearch",
+      "Read(//Users/wangchanghao/**)"
     ],
     "deny": []
-  }
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '\"\\(.tool_input.command) - \\(.tool_input.description // \"No description\")\"' >> ~/.claude/bash-command-log.txt"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay sound-effects/action_permission.mp3"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Task completed\" with title \"Claude\" sound name \"Glass\"'"
+          }
+        ]
+      }
+    ]
+  },
+  "disableAllHooks": false
 }

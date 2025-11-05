@@ -5,6 +5,22 @@
 /.pnp
 .pnp.js
 
+# package managers & caches
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+.pnpm-store/
+.npm/
+.cache/
+
+# editors & IDEs
+.vscode/
+.idea/
+*.code-workspace
+
+.VSCodeCounter/
+AGENTS.md
+/sound-effects/
 # testing
 /coverage
 
@@ -12,12 +28,27 @@
 /.next/
 /out/
 /CLAUDE.md
+/AGENTS.md
+docs./
 # production
 /build
+dist/
+.turbo/
 
 # misc
 .DS_Store
+Thumbs.db
+.AppleDouble
+.LSOverride
+Icon
+.Spotlight-V100
+.Trashes
+.fseventsd
 *.pem
+*.swp
+*.swo
+*.orig
+.eslintcache
 
 # debug
 npm-debug.log*
@@ -34,8 +65,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-.idea/
 # clerk configuration (can include secrets)
 /.clerk/
 
@@ -46,3 +75,13 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+.sentryclirc
+
+# direnv
+.envrc
+.direnv/
+
+# Supabase local artifacts (keep migrations tracked)
+supabase/.temp/
+supabase/.branches/
+supabase/.env

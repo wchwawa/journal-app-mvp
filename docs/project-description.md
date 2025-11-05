@@ -1,6 +1,6 @@
 **Project Description**
 
-EchoJournal, is developing an diary application to help digital diary writers capture their daily reflections with voice transcription. EchoJournal begins with voice transcription as the gateway to your thoughts. From there, it provides high-accuracy, AI-powered organization of your journal entries and a companion powered by a state-of-the-art voice-native large language model.
+EchoJournal, is developing an diary mobile application to help digital diary writers capture their daily reflections with voice transcription. EchoJournal begins with voice transcription as the gateway to your thoughts. From there, it provides high-accuracy, AI-powered organization of your journal entries and a companion powered by a state-of-the-art voice-native large language model.
 
 ### **Features**
 

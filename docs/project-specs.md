@@ -244,7 +244,7 @@ Dashboard / Journals (Journal Overview Page)
 │ └─ Daily Summary: (auto-generated text)
 └─ ... (More daily records in chronological order)
 
-## Module B: Achievement
+## Module B: Reflections
 
 将用户的成就按照固定的period（weekly and monthly）总结，按照时间顺序线性排列并展示。类似52个周以节点的方式线形排列，每个代表今年的一周（或者12个节点，每个代表一个月）。每个节点都会根据时间段内的日记内容总结 1. 成就 2.承诺 3. 状态（根据按照用户当周心情的占比来决定，比如7天中happy占多数，那就标记本周总体是开心的）
 
@@ -262,18 +262,56 @@ Dashboard / Journals (Journal Overview Page)
 
 ```json
 {
-  "daily": {
-    "2025-08-04": "焦虑指数 3/5，提到论文 dead-line …",
-    "2025-08-03": "心情良好，和男友通话 …"
-  },
   "weekly": {
-    "2025-W31": "整体积极，健身 3 次 …"
+    "2025-08-04": {
+      "achievements": {
+        1: "I finished my assignemnts for the week!",
+        2: "...",
+        3: "..."
+      },
+      "commitments": {
+        1: "My girlfriend told me she want iPhone 17 pro max to be her birthday present",
+        2: "..."
+      },
+      "mood": {
+        "overall": "happy",
+        "reason": "I found my internship!"
+      }
+    }
   },
   "monthly": {
-    "2025-07": "情绪波动较大，主要压力来自工作 …"
+    "2025-08": {
+      "achievements": {
+        1: "publish my paper!",
+        2: "...",
+        3: "..."
+      },
+      "commitments": {
+        1: "I need to write a paper for my thesis",
+        2: "..."
+      },
+      "mood": {
+        "overall": "neutral",
+        "reason": "I need to write a paper for my thesis"
+      }
+  }
   },
   "yearly": {
-    "2024": "完成硕士第一学年，搬家 …"
+    "2025": {
+      "achievements": {
+        1: "I find the job I want!",
+        2: "...",
+        3: "..."
+      },
+      "commitments": { 
+        1: "I need to find the job I want",
+        2: "..."
+      },
+      "mood": {
+        "overall": "neutral",
+        "reason": "I need to write a paper for my thesis"
+      }
+    }
   }
 }
 ```
