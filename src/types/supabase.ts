@@ -7,10 +7,10 @@ export type Json =
   | Json[];
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '12.2.3 (519615d)';
+    PostgrestVersion: '12.2.12 (cd3cf9e)';
   };
   public: {
     Tables: {
@@ -70,35 +70,119 @@ export type Database = {
       };
       daily_summaries: {
         Row: {
+          achievements: string[] | null;
+          commitments: string[] | null;
           created_at: string | null;
           date: string;
           dominant_emotions: string[] | null;
+          edited: boolean | null;
           entry_count: number | null;
+          flashback: string | null;
+          gen_version: string | null;
           id: string;
+          last_generated_at: string | null;
+          mood_overall: string | null;
           mood_quality: string | null;
+          mood_reason: string | null;
+          stats: Json | null;
           summary: string;
           updated_at: string | null;
           user_id: string;
         };
         Insert: {
+          achievements?: string[] | null;
+          commitments?: string[] | null;
           created_at?: string | null;
           date: string;
           dominant_emotions?: string[] | null;
+          edited?: boolean | null;
           entry_count?: number | null;
+          flashback?: string | null;
+          gen_version?: string | null;
           id?: string;
+          last_generated_at?: string | null;
+          mood_overall?: string | null;
           mood_quality?: string | null;
+          mood_reason?: string | null;
+          stats?: Json | null;
           summary: string;
           updated_at?: string | null;
           user_id: string;
         };
         Update: {
+          achievements?: string[] | null;
+          commitments?: string[] | null;
           created_at?: string | null;
           date?: string;
           dominant_emotions?: string[] | null;
+          edited?: boolean | null;
           entry_count?: number | null;
+          flashback?: string | null;
+          gen_version?: string | null;
           id?: string;
+          last_generated_at?: string | null;
+          mood_overall?: string | null;
           mood_quality?: string | null;
+          mood_reason?: string | null;
+          stats?: Json | null;
           summary?: string;
+          updated_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      period_reflections: {
+        Row: {
+          achievements: string[] | null;
+          commitments: string[] | null;
+          created_at: string | null;
+          edited: boolean | null;
+          flashback: string | null;
+          gen_version: string | null;
+          id: string;
+          last_generated_at: string | null;
+          mood_overall: string | null;
+          mood_reason: string | null;
+          period_end: string;
+          period_start: string;
+          period_type: string;
+          stats: Json | null;
+          updated_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          achievements?: string[] | null;
+          commitments?: string[] | null;
+          created_at?: string | null;
+          edited?: boolean | null;
+          flashback?: string | null;
+          gen_version?: string | null;
+          id?: string;
+          last_generated_at?: string | null;
+          mood_overall?: string | null;
+          mood_reason?: string | null;
+          period_end: string;
+          period_start: string;
+          period_type: string;
+          stats?: Json | null;
+          updated_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          achievements?: string[] | null;
+          commitments?: string[] | null;
+          created_at?: string | null;
+          edited?: boolean | null;
+          flashback?: string | null;
+          gen_version?: string | null;
+          id?: string;
+          last_generated_at?: string | null;
+          mood_overall?: string | null;
+          mood_reason?: string | null;
+          period_end?: string;
+          period_start?: string;
+          period_type?: string;
+          stats?: Json | null;
           updated_at?: string | null;
           user_id?: string;
         };
