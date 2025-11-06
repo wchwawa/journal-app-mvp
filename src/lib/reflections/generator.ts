@@ -11,6 +11,7 @@ import {
 import type { DailyAggregate } from './aggregate';
 import { reflectionAISchema } from './schema';
 import type { ReflectionCard, ReflectionMode } from './types';
+import type { Json, TablesInsert, TablesUpdate } from '@/types/supabase';
 
 type AdminClient = SupabaseClient<Database>;
 
@@ -22,21 +23,28 @@ interface GenerateOptions {
   anchorDate?: string;
 }
 
-const MODEL_NAME = process.env.OPENAI_REFLECTION_MODEL ?? 'gpt-5';
+const MODEL_NAME = process.env.OPENAI_REFLECTION_MODEL ?? 'gpt-4o-mini';
 const GEN_VERSION = 'module-b-v1';
 
 const sanitizeArray = (value: string[] | null | undefined) =>
   value?.filter((item) => item && item.trim().length > 0) ?? [];
 
-const cleanStats = (stats: Record<string, unknown> | null | undefined) => {
+type StatsShape =
+  | {
+      entryCount?: number;
+      topEmotions?: string[];
+      keywords?: string[];
+    }
+  | null
+  | undefined;
+
+const cleanStats = (stats: StatsShape): Json | null => {
   if (!stats) return null;
-  const filteredEntries = Object.entries(stats).filter(
-    ([, value]) => value !== null && value !== undefined
-  );
-
-  if (filteredEntries.length === 0) return null;
-
-  return Object.fromEntries(filteredEntries);
+  const obj: Record<string, unknown> = {};
+  if (typeof stats.entryCount === 'number') obj.entryCount = stats.entryCount;
+  if (Array.isArray(stats.topEmotions)) obj.topEmotions = stats.topEmotions;
+  if (Array.isArray(stats.keywords)) obj.keywords = stats.keywords;
+  return Object.keys(obj).length ? (obj as unknown as Json) : null;
 };
 
 const buildContextForDaily = ({ summary, mood }: DailyAggregate) => {
@@ -210,16 +218,14 @@ export async function generateReflection({
     }
 
     const existing = dailyData.summary;
-    const stats =
-      parsed.stats ??
-      ({
-        entryCount: existing.entry_count ?? 0,
-        topEmotions: countEmotions(aggregates)
-      } as Record<string, unknown>);
+    const stats = parsed.stats ?? {
+      entryCount: existing.entry_count ?? 0,
+      topEmotions: countEmotions(aggregates)
+    };
 
     const shouldPreserve = existing.edited ?? false;
 
-    const updatePayload = {
+    const updatePayload: TablesUpdate<'daily_summaries'> = {
       achievements: shouldPreserve
         ? (existing.achievements ?? [])
         : parsed.achievements,
@@ -347,7 +353,7 @@ export async function generateReflection({
     topEmotions: countEmotions(aggregates)
   };
 
-  const upsertPayload = {
+  const upsertPayload: TablesInsert<'period_reflections'> = {
     user_id: userId,
     period_type: mode,
     period_start: bounds.start,
