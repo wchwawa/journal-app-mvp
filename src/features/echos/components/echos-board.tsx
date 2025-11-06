@@ -303,10 +303,19 @@ export function EchosBoard() {
     try {
       setGenerating(true);
       setError(null);
+      // For weekly/monthly, if current view不是进行中的卡片，则以今天为锚点生成当期卡片
+      const todayISO = new Date().toISOString().split('T')[0];
+      const effectiveAnchor =
+        mode === 'daily'
+          ? (anchorDate ?? todayISO)
+          : activeCard && isCurrentPeriod(activeCard)
+            ? activeCard.period.start
+            : todayISO;
+
       const response = await fetch('/api/reflections/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, anchorDate })
+        body: JSON.stringify({ mode, anchorDate: effectiveAnchor })
       });
 
       if (!response.ok) {

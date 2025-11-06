@@ -244,11 +244,37 @@ Dashboard / Journals (Journal Overview Page)
 │ └─ Daily Summary: (auto-generated text)
 └─ ... (More daily records in chronological order)
 
-## Module B: Reflections
+## Module B: Echos (Reflections)
 
-将用户的成就按照固定的period（weekly and monthly）总结，按照时间顺序线性排列并展示。类似52个周以节点的方式线形排列，每个代表今年的一周（或者12个节点，每个代表一个月）。每个节点都会根据时间段内的日记内容总结 1. 成就 2.承诺 3. 状态（根据按照用户当周心情的占比来决定，比如7天中happy占多数，那就标记本周总体是开心的）
+Echos 以固定周期（Daily、Weekly、Monthly）生成结构化的反思卡片，来源于 `daily_summaries`、`daily_question` 与当日/当期的转写内容。每张卡包括：
+- Achievements（≤3）
+- Commitments（≤3）
+- Mood（overall + reason）
+- Flashback（一句 Hook）
 
-### data structure
+### 数据模型
+- 日粒度：复用 `daily_summaries`，扩展字段：`achievements[]`、`commitments[]`、`mood_overall`、`mood_reason`、`flashback`、`stats(jsonb)`、`edited(bool)`、`gen_version`、`last_generated_at`。
+- 周/月粒度：`period_reflections`（`user_id`、`period_type('weekly'|'monthly')`、`period_start`、`period_end`、同上字段、`UNIQUE(user_id,period_type,period_start)`）。
+
+### 生成与编辑
+- 触发：`POST /api/reflections/sync`，参数 `{ mode: 'daily'|'weekly'|'monthly', anchorDate?: 'YYYY-MM-DD' }`。
+  - Day：以 anchorDate（默认今天）更新当日 `daily_summaries` 的结构化反思；每天最多一次成功写入。
+  - Week/Month：只对“进行中”周/月卡 upsert；历史周期保持稳定。
+- 列表读取：`GET /api/reflections/daily|weekly|monthly`（limit/pagination）。
+- 轻量编辑：`PATCH /api/reflections/daily/:date`、`PATCH /api/reflections/period/:id`，设置 `edited=true`，后续再生不覆盖已编辑字段。
+
+### 时区与周期边界
+- 所有“周期边界”（周一..周日、本月）按“本地时区”计算，period_start/period_end 用本地 YYYY-MM-DD（不再使用 UTC 字符串日界），避免 11 月卡显示为 10 月。
+
+### 性能与交互
+- 异步化：录音保存后，`/api/transcribe` 立即返回；“生成日总结 + Echos 同步”在后台顺序执行。手动 `POST /api/generate-daily-summary` 同步返回 summary，但 Echos 同步改为后台触发。
+- Echos 页面（`/dashboard/echos`）：分段切换（Day/Week/Month），卡片展示与 Generate/Refresh/Edit 动作；刷新当前周/月时，若当前顶部卡片非“进行中”，则以“今天”为锚点生成当期卡。
+
+### 约束与校验
+- 模型返回 JSON 解析前做“软修正”：`achievements/commitments` 最多 3 项、`stats.keywords` 最多 8 项，随后再做 zod 校验；解析失败记录原文并抛错。
+
+### 未来演进
+- 迁移至 Responses API（GPT‑5）与更强鲁棒性解析；版本化 prompt；历史周期再生策略；更丰富可视化与趋势。
 
 ## Module C: AI voice companion
 

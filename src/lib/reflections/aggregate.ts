@@ -10,11 +10,17 @@ export interface DailyAggregate {
   mood?: Tables<'daily_question'> | null;
 }
 
-export const isoDate = (date: Date) => date.toISOString().split('T')[0];
+// Format a Date as YYYY-MM-DD in LOCAL time (do not convert to UTC)
+export const localYmd = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 export const resolveAnchorDate = (anchorDate?: string) => {
   if (anchorDate) return anchorDate;
-  return isoDate(new Date());
+  return localYmd(new Date());
 };
 
 export const getPeriodBounds = (
@@ -28,18 +34,20 @@ export const getPeriodBounds = (
   }
 
   if (mode === 'weekly') {
-    const dayOfWeek = date.getUTCDay() || 7; // 1 (Mon) ... 7 (Sun)
-    const monday = addDays(date, 1 - dayOfWeek);
-    const sunday = addDays(monday, 6);
+    // Use LOCAL week boundaries: Monday .. Sunday
+    const dow = date.getDay(); // 0 (Sun) .. 6 (Sat)
+    const diffToMonday = dow === 0 ? -6 : 1 - dow;
+    const monday = addDays(new Date(date), diffToMonday);
+    const sunday = addDays(new Date(monday), 6);
     return {
-      start: isoDate(monday),
-      end: isoDate(sunday)
+      start: localYmd(monday),
+      end: localYmd(sunday)
     };
   }
 
   const start = startOfMonth(date);
   const end = endOfMonth(date);
-  return { start: isoDate(start), end: isoDate(end) };
+  return { start: localYmd(start), end: localYmd(end) };
 };
 
 export async function fetchDailyAggregate(
@@ -117,7 +125,7 @@ export async function fetchAggregatesInRange(
 
   const moodMap = new Map<string, Tables<'daily_question'>>();
   moods?.forEach((mood) => {
-    const key = isoDate(new Date(mood.created_at ?? `${start}T00:00:00Z`));
+    const key = localYmd(new Date(mood.created_at ?? `${start}T00:00:00`));
     moodMap.set(key, mood);
   });
 

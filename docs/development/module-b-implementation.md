@@ -182,9 +182,73 @@ Allows light editing of a week/month card; sets edited=true.
 
 ## Functional Details
 
+### Updates (2025‑11‑06)
+
+1) Non‑blocking generation
+- 音频保存成功后，录音接口不再同步等待“日总结 + Echos 同步”。二者在后台顺序执行，前端更快得到成功反馈。
+- 参考：src/app/api/transcribe/route.ts
+```ts
+// kick off in background (non-blocking)
+(async () => {
+  const summaryData = await generateDailySummary(userId, supabase, openai);
+  if (summaryData?.date) {
+    await syncReflectionsForDate({ supabase, openai, userId, anchorDate: summaryData.date });
+  }
+})();
+```
+- 手动生成日总结接口也改为“同步返回 summary，Echos 同步后台触发”。
+
+2) 周/月周期边界改为“本地时区日界”
+- 修复原来 UTC 导致“11 月内容显示成 10 月卡片”的问题。
+- 参考：src/lib/reflections/aggregate.ts
+```ts
+// local YYYY-MM-DD
+export const localYmd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+export const getPeriodBounds = (mode, anchorDate) => {
+  const date = new Date(anchorDate);
+  if (mode === 'weekly') {
+    const dow = date.getDay();               // 0..6 local
+    const diffToMonday = dow === 0 ? -6 : 1 - dow;
+    const monday = addDays(new Date(date), diffToMonday);
+    const sunday = addDays(new Date(monday), 6);
+    return { start: localYmd(monday), end: localYmd(sunday) };
+  }
+  const start = startOfMonth(date), end = endOfMonth(date);
+  return { start: localYmd(start), end: localYmd(end) };
+};
+```
+
+3) 模型 JSON 解析与超限裁剪
+- 兼容 content 为空/分片数组，parse 前先拼接文本；对超限字段软裁剪再做 zod 校验，避免 ZodError。
+- 参考：src/lib/reflections/generator.ts
+```ts
+const raw = completion.choices[0]?.message?.content as any;
+const text = Array.isArray(raw) ? raw.map(c => c?.text ?? '').join('') : (raw ?? '');
+const obj = JSON.parse(text || '{}');
+if (Array.isArray(obj.achievements)) obj.achievements = obj.achievements.slice(0,3);
+if (Array.isArray(obj.commitments)) obj.commitments = obj.commitments.slice(0,3);
+if (obj.stats && Array.isArray(obj.stats.keywords)) obj.stats.keywords = obj.stats.keywords.slice(0,8);
+const parsed = reflectionAISchema.parse(obj);
+```
+
+4) 刷新锚点逻辑优化
+- 在 Echos 页（Week/Month）点击“Refresh current period”时，如果顶部卡片不是“进行中”，则以内“今天”为锚点生成当期卡，避免继续刷新历史月份。
+- 参考：src/features/echos/components/echos-board.tsx
+```ts
+const todayISO = new Date().toISOString().split('T')[0];
+const effectiveAnchor = mode === 'daily'
+  ? (anchorDate ?? todayISO)
+  : (activeCard && isCurrentPeriod(activeCard) ? activeCard.period.start : todayISO);
+await fetch('/api/reflections/sync', { body: JSON.stringify({ mode, anchorDate: effectiveAnchor }) });
+```
+
+5) 历史错误数据清理
+- 由于早期 UTC 边界问题，period_reflections 中可能存在“10/31 开头”的月卡但包含 11 月内容。建议按 Troubleshooting 文档的 Recovery Steps 进行只读核对与精确删除，再刷新生成当期卡。
+
 ### Period Windows & Timezone
 
-- Use a single timezone policy for aggregation (recommend UTC on server, convert for display). ISO week boundaries [Monday..Sunday].
+- Use LOCAL timezone boundaries for week/month aggregation. Week = Monday..Sunday; Month = calendar month. Persist dates as local YYYY-MM-DD.
 
 ### Daily Card Generation
 

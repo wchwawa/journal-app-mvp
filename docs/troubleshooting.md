@@ -550,6 +550,67 @@ WHERE (a.created_at AT TIME ZONE 'Australia/Sydney')::date = (SELECT d FROM tz);
 - UI/前端“今天”的定义应与查询/Studio 检视保持一致（明确时区）。
 - 后台长耗时任务尽量异步化，缩短用户感知延迟。
 
+### Recovery Steps（安全清理 + 重新生成）
+
+当出现“月/周卡片标题月份与内容不一致（UTC/本地月界错位）”时，建议按以下步骤恢复：
+
+1) 查找需要清理的错误卡片
+```sql
+-- 审核最近的月/周卡片（仅读取）
+SELECT period_type, period_start, period_end, created_at
+FROM period_reflections
+WHERE user_id = '<your_user_id>'
+ORDER BY period_start DESC
+LIMIT 20;
+```
+
+2) 精确删除错误月份（推荐显式 period_start）
+```sql
+-- 示例（将 <your_user_id> 替换为你的实际 user_id）
+DELETE FROM period_reflections
+WHERE user_id = '<your_user_id>'
+  AND period_type = 'monthly'
+  AND period_start IN ('2025-10-31','2025-09-30');
+```
+
+可选：如果错误行很多，可以使用区间删除，但建议先 `SELECT` 预览确认再执行：
+```sql
+-- 按时间窗口删除最近一段时间内的“错误月卡”（示例）
+-- 注意：先用同样 WHERE 条件执行 SELECT 确认后再改为 DELETE
+SELECT id, period_start, period_end, created_at
+FROM period_reflections
+WHERE user_id = '<your_user_id>'
+  AND period_type = 'monthly'
+  AND period_start < '2025-11-01';
+
+-- 确认无误后再删除：
+DELETE FROM period_reflections
+WHERE user_id = '<your_user_id>'
+  AND period_type = 'monthly'
+  AND period_start < '2025-11-01';
+```
+
+3) 前端重新生成“当前周期”卡片
+- 进入 `/dashboard/echos`，切换到 Monthly，点击 “Refresh current period”；
+- 我们已修正刷新锚点逻辑：若列表顶部不是“进行中”卡，则以内“今天”为锚点生成当期月卡（本地月界）；
+- 同理，如需纠正周卡，切换到 Weekly 点击刷新。
+
+4) 验证结果
+```sql
+-- 新的“本月”卡应为 period_start = 本地当月 1 号
+SELECT period_type, period_start, period_end, last_generated_at
+FROM period_reflections
+WHERE user_id = '<your_user_id>'
+  AND period_type = 'monthly'
+ORDER BY period_start DESC
+LIMIT 3;
+```
+
+注意事项
+- 建议只清理 `period_reflections` 中错误的周/月卡；`daily_summaries` 为日粒度基表，不需要删除。
+- 执行 `DELETE` 前务必用 `SELECT` 预览同一 WHERE 条件，确保删除目标正确。
+- 代码层面我们已将周期边界改为“本地时区”，后续再生不会再跨月/跨周。
+
 ## 修正思路与示例代码（Diff）
 
 本节记录我们对“录音→转写→日总结→Echos 同步”链路的修正方案，并提供可直接参考的代码 Diff（基于现有代码库）。
