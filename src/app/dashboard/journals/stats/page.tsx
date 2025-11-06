@@ -6,9 +6,9 @@ import { Separator } from '@/components/ui/separator';
 import { useAudioJournal } from '@/hooks/use-audio-journal';
 import { Loader2 } from 'lucide-react';
 
-export const metadata = {
-  title: 'Dashboard: Journal Stats'
-};
+// export const metadata = {
+//   title: 'Dashboard: Journal Stats'
+// };
 
 function StatsGrid() {
   const { stats, statsLoading, todayEntries } = useAudioJournal();
