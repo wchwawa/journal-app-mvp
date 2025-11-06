@@ -49,6 +49,28 @@ lsof -ti:3000 | xargs kill -9
 pnpm dev --port 3001
 ```
 
+#### 3. Intermittent `/_not-found` or `/_document` build errors
+**Error**:
+```
+Error [PageNotFoundError]: Cannot find module for page: /_not-found
+```
+
+**Cause**: Known Next.js 15 regression (particularly after large client-component updates) where the build step briefly loses the generated `_not-found` or `_document` entries even though `src/app/not-found.tsx` exists.
+
+**Workarounds**:
+```bash
+# Clear build artifacts then retry
+rm -rf .next
+pnpm build
+
+# If the error reappears, rerun the build once more
+pnpm build
+```
+
+**Notes**:
+- The issue does **not** affect `pnpm dev`; only production builds are impacted.
+- Track Next.js release notes and upgrade once the upstream fix lands. Until then, the retry strategy above has consistently recovered the build.
+
 ### React Development Issues
 
 #### 1. Client Component Event Handlers

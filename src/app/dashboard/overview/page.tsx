@@ -1,39 +1,42 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
 import AudioJournalPanel from '@/features/daily-record/components/audio-journal-panel';
 import DailyMoodWidget from '@/features/daily-record/components/daily-mood-widget';
-import Link from 'next/link';
+import EchosWidget from '@/features/overview/components/echos-widget';
+import { motion } from 'motion/react';
 
 export default function OverviewPage() {
   return (
-    <div className='from-background to-muted/20 min-h-screen bg-gradient-to-br'>
-      <div className='mx-auto max-w-6xl px-6 py-10'>
-        <div className='grid items-start gap-8 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]'>
-          <div className='flex flex-col gap-4'>
-            <DailyMoodWidget />
-            <Button
-              asChild
-              variant='outline'
-              className='justify-center text-sm'
-            >
-              <Link href='/dashboard/echos'>
-                View Echos
-                <ArrowRight className='ml-2 h-4 w-4' />
-              </Link>
-            </Button>
-          </div>
+    <div className='from-background via-background to-muted/10 min-h-screen bg-gradient-to-br'>
+      <div className='mx-auto flex w-full max-w-md flex-col gap-5 px-5 py-10 sm:max-w-lg'>
+        {/* Top widgets section */}
+        <motion.div
+          className='grid grid-cols-2 gap-3 sm:gap-4'
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+        >
+          <DailyMoodWidget />
+          <EchosWidget />
+        </motion.div>
 
-          <div className='lg:sticky lg:top-8'>
-            <div className='relative'>
-              <div className='from-primary/10 via-primary/5 absolute inset-0 scale-105 rounded-3xl bg-gradient-to-br to-transparent blur-xl' />
-              <div className='bg-card/80 border-border/50 relative rounded-3xl border p-8 shadow-2xl backdrop-blur-sm'>
-                <AudioJournalPanel />
-              </div>
-            </div>
+        {/* Main audio recording panel */}
+        <motion.div
+          className='relative mt-4'
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
+        >
+          {/* Enhanced ambient glow */}
+          <div className='from-primary/10 via-primary/5 absolute -inset-4 rounded-[2rem] bg-gradient-to-br to-transparent opacity-60 blur-3xl' />
+
+          {/* Subtle ring effect */}
+          <div className='from-primary/20 to-primary/10 absolute -inset-[2px] rounded-[1.75rem] bg-gradient-to-br via-transparent opacity-0 transition-opacity duration-500 hover:opacity-100' />
+
+          <div className='border-border/30 bg-card/90 hover:border-border/40 relative rounded-[1.75rem] border p-6 shadow-xl backdrop-blur-md transition-all duration-300 hover:shadow-2xl'>
+            <AudioJournalPanel />
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

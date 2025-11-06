@@ -156,6 +156,12 @@ Allows light editing of a week/month card; sets edited=true.
 
 ## Frontend UX
 
+### Overview entry point (`/dashboard/overview`)
+
+- Added `EchosWidget` (`src/features/overview/components/echos-widget.tsx`) as a compact CTA that lives beside the mood widget on mobile; tap navigates directly into `/dashboard/echos`
+- Widget uses a layered rainbow border + glow animation (CSS masks + animated gradients) to emphasise the AI-generated nature of reflections while staying minimal in footprint
+- Arrow affordance and reduced copy keep the button aligned with the new “tertiary vs. secondary vs. primary” hierarchy defined for overview (Mood → Echos → Audio recorder)
+
 ### Page: /dashboard/achievements
 
 - Segmented control: Day | Week | Month (default: Day).

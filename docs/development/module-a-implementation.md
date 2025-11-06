@@ -55,7 +55,8 @@ The A0 Daily Mood Record module has been successfully implemented as the foundat
    - **Real-time Data**: "Mood Today" card fetches current day's mood entry
    - **State Management**: Loading, error, and data states handled gracefully
    - **Auto-sync**: Card updates automatically after mood submission
-   - **Smart Formatting**: Day quality and emotions displayed intuitively
+   - **Lightweight Widget**: `DailyMoodWidget` (`src/features/daily-record/components/daily-mood-widget.tsx`) now renders as a compact button with animated emoji feedback instead of a full-width card, keeping copy to a single headline ("Mood today")
+   - **Mobile-first Layout**: Mood widget is presented alongside the Echo entry widget in a two-column row on `/dashboard/overview`, maintaining the hierarchy (Mood as tertiary action) while staying thumb-friendly
 
 #### Technical Implementation Notes
 
@@ -389,10 +390,10 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGci****
 #### UI Integration
 
 - **Embedded Design**: AudioJournalPanel integrated directly into Overview page (no modal)
-- **Visual Hierarchy**: Positioned as central focus on right side of two-column layout
+- **Visual Hierarchy**: In the refreshed mobile-first layout the recorder sits beneath the two compact widgets, remaining the primary CTA with reduced copy and tighter spacing
 - **Seamless Access**: Users can see and use recording functionality immediately without clicks
 - **Design Consistency**: Follows "Intelligent Minimalism" and "Human-Centered Interaction" principles
-- **Clean Interface**: Removed decorative gray oval background and red breathing effects for cleaner, distraction-free design
+- **Trimmed Presentation**: Shortened headline/description, resized buttons, and slimmed progress indicator to free vertical space on mobile while keeping controls reachable
 
 #### Data Flow
 

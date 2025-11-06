@@ -350,30 +350,32 @@ export default function AudioJournalPanel({
     hasRecording && !isProcessing && processingState === 'idle';
 
   return (
-    <div className={cn('mx-auto w-full max-w-md', className)}>
+    <div className={cn('mx-auto w-full max-w-sm', className)}>
       {/* Central recording interface */}
-      <div className='space-y-6 p-4'>
+      <div className='space-y-5 p-4'>
         {/* Title */}
-        <div className='space-y-2 text-center'>
-          <h2 className='text-foreground text-2xl font-bold'>Voice Journal</h2>
-          <p className='text-muted-foreground text-sm'>
-            Speak your thoughts, let AI organize them
+        <div className='space-y-1.5 text-center'>
+          <h2 className='text-foreground text-xl font-semibold tracking-tight'>
+            Voice journal
+          </h2>
+          <p className='text-muted-foreground text-xs leading-relaxed'>
+            Capture a quick audio note and let AI tidy it up.
           </p>
         </div>
 
         {/* Recording Status */}
-        <div className='space-y-4 text-center'>
-          <div className='text-foreground font-mono text-3xl font-bold'>
+        <div className='space-y-3 text-center'>
+          <div className='text-foreground font-mono text-2xl font-semibold'>
             {formatTime(recordingTime)}
           </div>
-          <div className='text-muted-foreground text-sm'>{getStatusText()}</div>
+          <div className='text-muted-foreground text-xs'>{getStatusText()}</div>
         </div>
 
         {/* Progress Bar */}
-        <div className='space-y-2'>
-          <Progress value={getProgressPercent()} className='bg-muted h-2' />
-          <div className='text-muted-foreground text-center text-xs'>
-            Maximum: {formatTime(MAX_RECORDING_TIME)}
+        <div className='space-y-1.5'>
+          <Progress value={getProgressPercent()} className='bg-muted h-1.5' />
+          <div className='text-muted-foreground text-center text-[11px]'>
+            Max {formatTime(MAX_RECORDING_TIME)}
           </div>
         </div>
 
@@ -393,7 +395,7 @@ export default function AudioJournalPanel({
                 disabled={isProcessing}
                 size='lg'
                 className={cn(
-                  'h-20 w-20 rounded-full transition-all duration-300',
+                  'h-[4.25rem] w-[4.25rem] rounded-full transition-all duration-300',
                   'shadow-lg hover:shadow-xl',
                   isRecording
                     ? 'bg-red-500 hover:bg-red-600'
@@ -493,21 +495,23 @@ export default function AudioJournalPanel({
 
         {/* Results Display */}
         {isComplete && (transcription || summary) && (
-          <div className='border-border/50 space-y-4 border-t pt-4'>
+          <div className='border-border/50 space-y-4 border-t pt-4 text-sm'>
             {transcription && (
               <div className='space-y-2'>
-                <h4 className='text-foreground text-sm font-medium'>
+                <h4 className='text-foreground text-xs font-semibold tracking-[0.2em] uppercase'>
                   Transcription
                 </h4>
-                <div className='bg-muted/50 text-muted-foreground rounded-lg p-3 text-sm'>
+                <div className='bg-muted/40 text-muted-foreground rounded-lg p-3 text-xs leading-relaxed'>
                   {transcription}
                 </div>
               </div>
             )}
             {summary && (
               <div className='space-y-2'>
-                <h4 className='text-foreground text-sm font-medium'>Summary</h4>
-                <div className='bg-muted/50 text-muted-foreground rounded-lg p-3 text-sm'>
+                <h4 className='text-foreground text-xs font-semibold tracking-[0.2em] uppercase'>
+                  Summary
+                </h4>
+                <div className='bg-muted/40 text-muted-foreground rounded-lg p-3 text-xs leading-relaxed'>
                   {summary}
                 </div>
               </div>

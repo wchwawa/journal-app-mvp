@@ -1,22 +1,29 @@
 'use client';
 
-import { memo, useCallback } from 'react';
-import { Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import { memo, useCallback, useMemo } from 'react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { useTodayMood } from '@/hooks/use-today-mood';
-import { formatDayQuality, formatEmotions } from '@/lib/mood-utils';
-import { getDayQualityIcon } from '@/components/icons';
+import { formatDayQuality } from '@/lib/mood-utils';
 import { cn } from '@/lib/utils';
+import { AnimatePresence, motion } from 'motion/react';
 
 const moodHeadline = (dayQuality?: string | null) => {
-  if (!dayQuality) return 'No check-in yet';
+  if (!dayQuality) return 'Log mood';
   return formatDayQuality(dayQuality);
 };
 
-const moodSubtitle = (emotions?: string[]) => {
-  if (!emotions || emotions.length === 0) {
-    return "Tap the icon to log today's mood";
+const emojiForMood = (dayQuality?: string | null) => {
+  if (!dayQuality) return '✨';
+  switch (dayQuality) {
+    case 'good':
+      return '🌞';
+    case 'bad':
+      return '🌧️';
+    case 'so-so':
+      return '🌤️';
+    default:
+      return '🌈';
   }
-  return formatEmotions(emotions);
 };
 
 const DailyMoodWidgetComponent = () => {
@@ -27,19 +34,21 @@ const DailyMoodWidgetComponent = () => {
     window.dispatchEvent(event);
   }, []);
 
+  const emoji = useMemo(
+    () => emojiForMood(moodEntry?.day_quality),
+    [moodEntry?.day_quality]
+  );
+
   if (error) {
     return (
-      <div className='border-border/60 bg-card/70 flex flex-col gap-3 rounded-2xl border p-4 shadow-sm'>
-        <div className='text-foreground text-sm font-medium'>
+      <div className='border-border/40 bg-card/60 flex flex-col gap-2 rounded-2xl border p-3 shadow-sm'>
+        <div className='text-foreground text-xs font-medium'>
           Unable to load mood
-        </div>
-        <div className='text-muted-foreground text-xs'>
-          Try refreshing or check back shortly.
         </div>
         <button
           type='button'
           onClick={() => refetch()}
-          className='text-primary inline-flex w-max items-center gap-1 text-xs font-medium'
+          className='text-primary inline-flex w-max items-center gap-1 text-[11px] font-medium'
         >
           <RefreshCw className='h-3.5 w-3.5' />
           Reload
@@ -48,37 +57,45 @@ const DailyMoodWidgetComponent = () => {
     );
   }
 
-  const moodIcon = moodEntry?.day_quality
-    ? getDayQualityIcon(moodEntry.day_quality, true)
-    : null;
-
   return (
-    <button
+    <motion.button
       type='button'
       onClick={openMoodModal}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       className={cn(
-        'group border-border/60 bg-card/70 relative flex w-full items-center gap-4 rounded-2xl border p-4 text-left shadow-sm transition duration-200',
-        'hover:border-border focus-visible:ring-primary/40 focus-visible:ring-2 focus-visible:outline-none'
+        'group border-border/20 bg-card/80 relative flex h-full w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left shadow-sm backdrop-blur-sm transition-all duration-300',
+        'hover:border-border/40 hover:shadow-md',
+        'focus-visible:ring-primary/40 focus-visible:ring-2 focus-visible:outline-none'
       )}
     >
-      <div className='bg-primary/10 text-primary group-hover:bg-primary/15 flex h-14 w-14 items-center justify-center rounded-full transition'>
-        {moodIcon ? moodIcon : <Sparkles className='text-primary h-6 w-6' />}
+      <div className='relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-100 to-yellow-50 shadow-inner ring-1 ring-orange-200/50 dark:from-orange-900/30 dark:to-yellow-900/20 dark:ring-orange-700/30'>
+        <AnimatePresence mode='wait'>
+          <motion.span
+            key={emoji}
+            initial={{ scale: 0.7, rotate: -8, opacity: 0 }}
+            animate={{ scale: 1, rotate: 0, opacity: 1 }}
+            exit={{ scale: 0.6, rotate: 8, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+            className='text-2xl'
+            aria-hidden
+          >
+            {emoji}
+          </motion.span>
+        </AnimatePresence>
       </div>
-      <div className='flex flex-1 flex-col'>
-        <span className='text-muted-foreground text-xs tracking-wide uppercase'>
-          Mood today
-        </span>
-        <span className='text-foreground text-base font-semibold'>
+      <div className='relative flex flex-1 flex-col'>
+        <span className='text-foreground text-base font-semibold transition-colors group-hover:text-orange-600 dark:group-hover:text-orange-400'>
           {moodHeadline(moodEntry?.day_quality)}
         </span>
-        <span className='text-muted-foreground text-xs'>
-          {moodSubtitle(moodEntry?.emotions)}
+        <span className='text-muted-foreground/70 hidden text-[10px] font-medium sm:inline'>
+          Daily Check-in
         </span>
       </div>
       {isLoading ? (
-        <Loader2 className='text-muted-foreground h-4 w-4 animate-spin' />
+        <Loader2 className='text-muted-foreground h-3.5 w-3.5 shrink-0 animate-spin' />
       ) : null}
-    </button>
+    </motion.button>
   );
 };
 
