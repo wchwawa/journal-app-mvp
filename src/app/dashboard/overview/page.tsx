@@ -1,18 +1,17 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Heart, Loader2 } from 'lucide-react';
+import { Heart, Loader2, ArrowRight } from 'lucide-react';
 import { useTodayMood } from '@/hooks/use-today-mood';
-import { useAudioJournal } from '@/hooks/use-audio-journal';
 import { getMoodDisplayData } from '@/lib/mood-utils';
 import { getDayQualityIcon, getEmotionIcon } from '@/components/icons';
 import AudioJournalPanel from '@/features/daily-record/components/audio-journal-panel';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 export default function OverviewPage() {
   const { moodEntry, isLoading, error } = useTodayMood();
   const moodDisplayData = getMoodDisplayData(moodEntry);
-  const { stats, statsLoading, todayEntries } = useAudioJournal();
 
   return (
     <div className='from-background to-muted/20 min-h-screen bg-gradient-to-br'>
@@ -42,7 +41,7 @@ export default function OverviewPage() {
 
         {/* Main Content - Two Column Layout */}
         <div className='grid items-start gap-12 lg:grid-cols-2'>
-          {/* Left Column - Metadata and Stats */}
+          {/* Left Column - Mood Snapshot */}
           <div className='space-y-8'>
             {/* Mood Today Card */}
             <div className='group relative'>
@@ -103,79 +102,6 @@ export default function OverviewPage() {
                 )}
               </div>
             </div>
-
-            {/* Stats Grid */}
-            <div className='grid gap-4 sm:grid-cols-2'>
-              <div className='group bg-muted/20 hover:bg-muted/30 border-border/30 rounded-2xl border p-6 transition-all duration-300'>
-                <div className='space-y-2'>
-                  <p className='text-muted-foreground text-sm font-medium'>
-                    Total Entries
-                  </p>
-                  <p className='text-foreground text-3xl font-bold'>
-                    {statsLoading ? (
-                      <Loader2 className='h-8 w-8 animate-spin' />
-                    ) : (
-                      stats.totalEntries
-                    )}
-                  </p>
-                  <p className='text-muted-foreground text-xs'>
-                    {stats.totalEntries === 0
-                      ? 'Start journaling today'
-                      : 'Voice & mood entries'}
-                  </p>
-                </div>
-              </div>
-
-              <div className='group bg-muted/20 hover:bg-muted/30 border-border/30 rounded-2xl border p-6 transition-all duration-300'>
-                <div className='space-y-2'>
-                  <p className='text-muted-foreground text-sm font-medium'>
-                    This Week
-                  </p>
-                  <p className='text-foreground text-3xl font-bold'>
-                    {statsLoading ? (
-                      <Loader2 className='h-8 w-8 animate-spin' />
-                    ) : (
-                      stats.thisWeekEntries
-                    )}
-                  </p>
-                  <p className='text-muted-foreground text-xs'>
-                    {todayEntries.length > 0
-                      ? `${todayEntries.length} today`
-                      : 'No entries today'}
-                  </p>
-                </div>
-              </div>
-
-              <div className='group bg-muted/20 hover:bg-muted/30 border-border/30 rounded-2xl border p-6 transition-all duration-300'>
-                <div className='space-y-2'>
-                  <p className='text-muted-foreground text-sm font-medium'>
-                    Streak
-                  </p>
-                  <p className='text-foreground text-3xl font-bold'>
-                    {statsLoading ? (
-                      <Loader2 className='h-8 w-8 animate-spin' />
-                    ) : (
-                      stats.currentStreak
-                    )}
-                  </p>
-                  <p className='text-muted-foreground text-xs'>
-                    Consecutive days
-                  </p>
-                </div>
-              </div>
-
-              <div className='group bg-muted/20 hover:bg-muted/30 border-border/30 rounded-2xl border p-6 transition-all duration-300'>
-                <div className='space-y-2'>
-                  <p className='text-muted-foreground text-sm font-medium'>
-                    Today
-                  </p>
-                  <p className='text-foreground text-3xl font-bold'>
-                    {todayEntries.length}
-                  </p>
-                  <p className='text-muted-foreground text-xs'>Voice entries</p>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Right Column - Audio Journal Panel (Core Feature) */}
@@ -188,6 +114,14 @@ export default function OverviewPage() {
               <div className='bg-card/80 border-border/50 relative rounded-3xl border p-8 shadow-2xl backdrop-blur-sm'>
                 <AudioJournalPanel />
               </div>
+            </div>
+            <div className='mt-6 flex justify-center lg:justify-start'>
+              <Button asChild variant='outline' className='group'>
+                <Link href='/dashboard/echos'>
+                  View Echos
+                  <ArrowRight className='ml-2 h-4 w-4 transition-transform group-hover:translate-x-1' />
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

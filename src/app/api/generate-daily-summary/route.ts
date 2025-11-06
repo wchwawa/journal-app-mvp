@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
+import { syncReflectionsForDate } from '@/lib/reflections/sync';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -155,6 +156,20 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Trigger echos sync in background to keep summary response fast
+    (async () => {
+      try {
+        await syncReflectionsForDate({
+          supabase,
+          openai,
+          userId,
+          anchorDate: date
+        });
+      } catch (reflectionError) {
+        console.error('Background reflections sync failed:', reflectionError);
+      }
+    })();
 
     // Return success response
     return NextResponse.json({

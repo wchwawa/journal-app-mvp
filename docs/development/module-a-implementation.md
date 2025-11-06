@@ -511,7 +511,7 @@ The Daily Summary Generation feature has been successfully implemented as part o
    // Endpoint: POST /api/generate-daily-summary
    // Body: { date: "2025-01-17" }
    // Authentication: Clerk user session required
-   
+
    // Processing flow:
    1. Validate user authentication
    2. Parse and validate date parameter
@@ -548,28 +548,28 @@ The Daily Summary Generation feature has been successfully implemented as part o
 ##### AI Processing Pipeline
 
 ```typescript
-// OpenAI GPT-4o-mini integration
+// OpenAI GPT-4o integration
 const completion = await openai.chat.completions.create({
-  model: "gpt-4o-mini",
+  model: 'gpt-4o',
   messages: [
     {
-      role: "system",
-      content: "You are a personal journal assistant. Create a thoughtful daily summary..."
+      role: 'system',
+      content:
+        'You are a personal journal assistant. Create a thoughtful daily summary...'
     },
     {
-      role: "user", 
+      role: 'user',
       content: `Summarize this day's journal entries: ${combinedTranscripts}`
     }
   ],
-  max_tokens: 200,
-  temperature: 0.7
+  max_tokens: 200
 });
 ```
 
 ##### Data Validation and Security
 
 - **User Isolation**: Queries filtered by authenticated user ID
-- **Date Validation**: Proper date parsing and range validation  
+- **Date Validation**: Proper date parsing and range validation
 - **Duplicate Prevention**: Unique constraint on user_id + summary_date
 - **Content Sanitization**: AI output sanitized before database storage
 
@@ -600,7 +600,7 @@ const completion = await openai.chat.completions.create({
 ##### Functional Testing
 
 - ✅ Generates meaningful summaries from multiple journal entries
-- ✅ Handles single entry days appropriately  
+- ✅ Handles single entry days appropriately
 - ✅ Prevents duplicate summaries for same user/date
 - ✅ Proper error handling for edge cases
 - ✅ User isolation maintained across all operations
@@ -733,14 +733,14 @@ The A2 User's Journal module has been successfully implemented as a comprehensiv
 #### Core Functionality
 
 1. **Nested Journal Display Structure**
-   
+
    - **Daily Summary Level**: Collapsible cards showing date, mood, emotions, and AI-generated summary
    - **Journal Entry Level**: Individual entries within each day with full transcript display
    - **Visual Hierarchy**: Clear parent-child relationship between daily summaries and journal entries
    - **Expand/Collapse**: Interactive UI for managing information density
 
 2. **Search and Filter System**
-   
+
    ```typescript
    // Filter options implemented
    - Date Range: Start and end date pickers
@@ -750,23 +750,21 @@ The A2 User's Journal module has been successfully implemented as a comprehensiv
    ```
 
 3. **Journal Entry Management**
-   
-   - **Edit Functionality**: 
+
+   - **Edit Functionality**:
      - In-line editing of transcript rephrased text
      - Real-time save with loading states
      - Automatic daily summary regeneration on edit
-   
    - **Delete Functionality**:
      - Confirmation dialog before deletion
      - Cascading deletion (transcript → storage → audio_file)
      - Automatic daily summary regeneration after deletion
-   
-   - **Audio Playback**: 
+   - **Audio Playback**:
      - Play/pause controls for each journal entry
      - Requires `/api/audio/[id]` endpoint implementation (future)
 
 4. **Data Query Implementation**
-   
+
    ```typescript
    // getJournalsWithSummaries query structure
    1. Query daily_summaries with filters
@@ -799,6 +797,7 @@ The A2 User's Journal module has been successfully implemented as a comprehensiv
 ##### UI/UX Features
 
 - **Visual Feedback**:
+
   - Hover effects on interactive elements
   - Loading states during operations
   - Success/error feedback for actions

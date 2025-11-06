@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
+import { syncReflectionsForDate } from '@/lib/reflections/sync';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -284,13 +285,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 6: Generate daily summary directly
-    try {
-      await generateDailySummary(userId, supabase, openai);
-    } catch (summaryError) {
-      // Log but don't fail the main request
-      console.error('Failed to generate daily summary:', summaryError);
-    }
+    // Step 6: Kick off daily summary + echos sync in background (non-blocking)
+    (async () => {
+      try {
+        const summaryData = await generateDailySummary(
+          userId,
+          supabase,
+          openai
+        );
+        if (summaryData?.date) {
+          await syncReflectionsForDate({
+            supabase,
+            openai,
+            userId,
+            anchorDate: summaryData.date
+          });
+        }
+      } catch (summaryError) {
+        console.error('Background daily summary failed:', summaryError);
+      }
+    })();
 
     // Return success response
     return NextResponse.json({

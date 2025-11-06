@@ -18,7 +18,9 @@
       "Read(//Users/wangchanghao/Projects/AIJournal/**)",
       "Bash(mkdir:*)",
       "WebSearch",
-      "Read(//Users/wangchanghao/**)"
+      "Read(//Users/wangchanghao/**)",
+      "Bash(cat:*)",
+      "Bash(pnpm dev:*)"
     ],
     "deny": []
   },

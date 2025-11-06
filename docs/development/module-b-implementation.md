@@ -1,8 +1,10 @@
-# Module B Implementation Guide — Achievements & Reflections
+# Module B Implementation Guide — Echos
+
+> **Status (2025-11-05)** — 轻量版 MVP 已上线：数据库 schema、生成器、API、前端体验、每日摘要自动触发链路均已落地。性能优化、视觉动效与更细的异常处理待下一阶段集中处理。
 
 ## Overview
 
-Module B provides AI-powered, structured reflections over three fixed periods — Day, Week, and Month — using existing data from Module A (Daily Summaries and Mood Check-ins). Output per card includes:
+Module B (Echos) provides AI-powered, structured reflections over three fixed periods — Day, Week, and Month — using existing data from Module A (Daily Summaries and Mood Check-ins). Output per card includes:
 
 - Achievements (≤ 3)
 - Commitments (≤ 3)
@@ -329,4 +331,3 @@ This section documents the rationale behind Module B’s design choices, includi
    - Trade‑off: Some features ship later, but the core user value is demonstrable and defensible in the report.
 
 Overall, this design optimizes for clarity, control, cost, and demo readiness while keeping future evolution straightforward (period tables, versioning, richer viz, agent tie‑in). It directly addresses the requirement that new important information should immediately reflect in the ongoing week/month, without introducing background complexity or user confusion.
-

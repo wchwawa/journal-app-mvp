@@ -15,17 +15,17 @@ export const getTodayMoodEntry = cache(
   async (supabase: TypedSupabaseClient, userId: string) => {
     if (!userId) return null;
 
-    const today = new Date().toISOString().split('T')[0];
-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0];
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
 
     const { data, error } = await supabase
       .from('daily_question')
       .select('*')
       .eq('user_id', userId)
-      .gte('created_at', today)
-      .lt('created_at', tomorrow)
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString())
       .single();
 
     if (error && error.code === 'PGRST116') {
@@ -89,10 +89,10 @@ export const getTodayAudioJournals = cache(
   async (supabase: TypedSupabaseClient, userId: string) => {
     if (!userId) return [];
 
-    const today = new Date().toISOString().split('T')[0];
-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0];
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
 
     const { data, error } = await supabase
       .from('audio_files')
@@ -108,8 +108,8 @@ export const getTodayAudioJournals = cache(
       `
       )
       .eq('user_id', userId)
-      .gte('created_at', today)
-      .lt('created_at', tomorrow)
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString())
       .order('created_at', { ascending: false });
 
     if (error) {

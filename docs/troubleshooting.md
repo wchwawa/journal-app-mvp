@@ -500,6 +500,254 @@ Create a concise, structured summary that:
 - Aims for 2-3 sentences maximum`;
 ```
 
+## Module B (Echos) – Troubleshooting Case Study
+
+### Symptoms
+- After switching models to GPT‑5/5‑mini, recording/transcribe sometimes returned 500/400 and Echos cards failed to generate; JSON parsing errors like `Unexpected end of JSON input`.
+- Daily Summaries (table)显示“今天有多条”，但 `transcripts` 看起来“今天只有少量”；前端列表都能看到并可编辑，Studio 过一阵子又“突然出现”。
+- `/api/transcribe` 响应耗时较长，前端等待感强。
+
+### Root Causes
+- GPT‑5 chat 参数不兼容：不支持 `temperature`/`top_p`/`max_tokens`，需要改用 `max_completion_tokens` 或直接迁移到 Responses API；同时 `choices[0].message.content` 可能为空或为数组，直接 `JSON.parse(content)` 会抛错。
+- 时区窗口不一致：前端按“本地日界”看“今天”，而 Studio 过滤按 UTC；或查询用 `toISOString().split('T')[0]` 导致与期望不一致。
+- 阻塞式流程：日总结 + Echos 同步在录音后同步等待，拉长了 `/api/transcribe` 响应时间。
+
+### Fixes & Changes
+- 模型回退：统一回退为 GPT‑4 系列（`gpt-4o`/`gpt-4o-mini`），参数恢复 `max_tokens` + `temperature`，保证稳定性（`src/app/api/transcribe/route.ts`, `src/app/api/generate-daily-summary/route.ts`, `src/lib/reflections/generator.ts`）。
+- JSON 解析防护（建议）：对 `choices[0].message.content` 判空；如返回为数组则拼接 `text` 字段；`try/catch JSON.parse` 并提供 fallback。
+- 非阻塞化：把“生成日总结 + Echos 同步”改为后台任务，录音接口尽快返回（`src/app/api/transcribe/route.ts`），手动生成日总结后也异步触发 Echos（`src/app/api/generate-daily-summary/route.ts`）。
+- 时区一致性（建议）：客户端“今天”查询使用本地起止时间转换为 ISO，或后端统一以用户时区计算窗口并落库查询，避免“GUI 看不到”。
+
+### Verification Playbook
+1) 用 DevTools MCP 抓取 `/api/transcribe`：确认 200，响应体含 `audioFileId`、`transcriptId`。
+2) SQL 快速核对（UTC vs 本地时区）：
+```sql
+-- UTC 当天计数
+WITH b AS (
+  SELECT date_trunc('day', now() AT TIME ZONE 'UTC') AS s,
+         date_trunc('day', now() AT TIME ZONE 'UTC') + interval '1 day' AS e)
+SELECT 'transcripts_utc' AS bucket, COUNT(*)
+FROM transcripts t, b WHERE t.created_at >= b.s AND t.created_at < b.e
+UNION ALL
+SELECT 'audio_utc', COUNT(*) FROM audio_files a, b WHERE a.created_at >= b.s AND a.created_at < b.e;
+
+-- 悉尼当天计数（替换为你的时区）
+WITH tz AS (SELECT (now() AT TIME ZONE 'Australia/Sydney')::date AS d)
+SELECT 'transcripts_syd', COUNT(*) FROM transcripts t, tz
+WHERE (t.created_at AT TIME ZONE 'Australia/Sydney')::date = (SELECT d FROM tz)
+UNION ALL
+SELECT 'audio_syd', COUNT(*) FROM audio_files a, tz
+WHERE (a.created_at AT TIME ZONE 'Australia/Sydney')::date = (SELECT d FROM tz);
+```
+3) Studio 视图：不加日期过滤，先按 `created_at DESC` 查看最新，再精确搜索 `id`。
+
+### Dev Tips
+- 本地旁路鉴权以便 DevTools 测试：`.env.local` 加 `NEXT_PUBLIC_DISABLE_ALL_AUTH=true`，重启 dev；中间件将放过页面与 API（`src/middleware.ts`）。
+- 录音链路数据流：Storage→`audio_files`→`transcripts`→（后台）`daily_summaries`→（后台）`period_reflections`。
+
+### Lessons Learned
+- 在切换模型前验证参数/响应结构差异（GPT‑5 应优先使用 Responses API）。
+- UI/前端“今天”的定义应与查询/Studio 检视保持一致（明确时区）。
+- 后台长耗时任务尽量异步化，缩短用户感知延迟。
+
+## 修正思路与示例代码（Diff）
+
+本节记录我们对“录音→转写→日总结→Echos 同步”链路的修正方案，并提供可直接参考的代码 Diff（基于现有代码库）。
+
+### A. 将“日总结 + Echos 同步”改为后台异步，缩短前端等待
+
+原因：保存音频与 transcripts 成功后即可返回成功。日总结与 Echos 生成是增值操作，不应阻塞主链路。
+
+涉及文件：`src/app/api/transcribe/route.ts`、`src/app/api/generate-daily-summary/route.ts`
+
+示例 Diff：
+
+```diff
+diff --git a/src/app/api/transcribe/route.ts b/src/app/api/transcribe/route.ts
+@@
+-    // Step 6: Generate daily summary directly
+-    try {
+-      const summaryData = await generateDailySummary(
+-        userId,
+-        supabase,
+-        openai
+-      );
+-      if (summaryData?.date) {
+-        await syncReflectionsForDate({
+-          supabase,
+-          openai,
+-          userId,
+-          anchorDate: summaryData.date
+-        });
+-      }
+-    } catch (summaryError) {
+-      // Log but don't fail the main request
+-      console.error('Failed to generate daily summary:', summaryError);
+-    }
++    // Step 6: Kick off daily summary + echos sync in background (non-blocking)
++    (async () => {
++      try {
++        const summaryData = await generateDailySummary(
++          userId,
++          supabase,
++          openai
++        );
++        if (summaryData?.date) {
++          await syncReflectionsForDate({
++            supabase,
++            openai,
++            userId,
++            anchorDate: summaryData.date
++          });
++        }
++      } catch (summaryError) {
++        console.error('Background daily summary failed:', summaryError);
++      }
++    })();
+
+diff --git a/src/app/api/generate-daily-summary/route.ts b/src/app/api/generate-daily-summary/route.ts
+@@
+-    try {
+-      await syncReflectionsForDate({
+-        supabase,
+-        openai,
+-        userId,
+-        anchorDate: date
+-      });
+-    } catch (reflectionError) {
+-      console.error('Failed to sync reflections after summary:', reflectionError);
+-    }
++    // Trigger echos sync in background to keep summary response fast
++    (async () => {
++      try {
++        await syncReflectionsForDate({
++          supabase,
++          openai,
++          userId,
++          anchorDate: date
++        });
++      } catch (reflectionError) {
++        console.error('Background reflections sync failed:', reflectionError);
++      }
++    })();
+```
+
+### B. 统一“今天”的时间窗口（避免时区错乱）
+
+原因：客户端之前用 `toISOString().split('T')[0]` 计算今日边界，默认 UTC 日界，容易与本地/Studio 显示不一致。建议统一使用“本地 00:00:00–23:59:59.999”，转换为 ISO 再查询。
+
+涉及文件：`src/lib/supabase/queries.ts`
+
+示例 Diff（变更）：
+
+```diff
+diff --git a/src/lib/supabase/queries.ts b/src/lib/supabase/queries.ts
+@@
+ export const getTodayMoodEntry = cache(
+   async (supabase: TypedSupabaseClient, userId: string) => {
+     if (!userId) return null;
+
+-    const today = new Date().toISOString().split('T')[0];
+-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
+-      .toISOString()
+-      .split('T')[0];
++    const start = new Date();
++    start.setHours(0, 0, 0, 0);
++    const end = new Date();
++    end.setHours(23, 59, 59, 999);
+
+     const { data, error } = await supabase
+       .from('daily_question')
+       .select('*')
+       .eq('user_id', userId)
+-      .gte('created_at', today)
+-      .lt('created_at', tomorrow)
++      .gte('created_at', start.toISOString())
++      .lte('created_at', end.toISOString())
+       .single();
+@@
+ export const getTodayAudioJournals = cache(
+   async (supabase: TypedSupabaseClient, userId: string) => {
+     if (!userId) return [];
+
+-    const today = new Date().toISOString().split('T')[0];
+-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
+-      .toISOString()
+-      .split('T')[0];
++    const start = new Date();
++    start.setHours(0, 0, 0, 0);
++    const end = new Date();
++    end.setHours(23, 59, 59, 999);
+
+     const { data, error } = await supabase
+       .from('audio_files')
+       .select(
+         `
+         *,
+         transcripts (
+           id,
+           text,
+           language,
+           created_at
+         )
+       `
+       )
+       .eq('user_id', userId)
+-      .gte('created_at', today)
+-      .lt('created_at', tomorrow)
++      .gte('created_at', start.toISOString())
++      .lte('created_at', end.toISOString())
+       .order('created_at', { ascending: false });
+```
+
+### C. 反思卡片的 JSON 解析加固（防止空 content/数组 content）
+
+原因：LLM 可能返回空字符串，或 `content` 是分片数组；直接 `JSON.parse(choices[0].message.content)` 会抛错。
+
+涉及文件：`src/lib/reflections/generator.ts`
+
+示例 Diff（建议变更，展示 daily 以及 period 两处）：
+
+```diff
+diff --git a/src/lib/reflections/generator.ts b/src/lib/reflections/generator.ts
+@@
+-    const parsed = reflectionAISchema.parse(
+-      JSON.parse(completion.choices[0]?.message?.content ?? '{}')
+-    );
++    const raw = completion.choices[0]?.message?.content as any;
++    const text = Array.isArray(raw)
++      ? raw.map((chunk) => chunk?.text ?? '').join('')
++      : (raw ?? '');
++    let parsed;
++    try {
++      parsed = reflectionAISchema.parse(JSON.parse(text));
++    } catch (err) {
++      console.error('Reflection JSON parse failed (daily):', { text, err });
++      throw err;
++    }
+@@
+-  const parsed = reflectionAISchema.parse(
+-    JSON.parse(completion.choices[0]?.message?.content ?? '{}')
+-  );
++  const raw2 = completion.choices[0]?.message?.content as any;
++  const text2 = Array.isArray(raw2)
++    ? raw2.map((chunk) => chunk?.text ?? '').join('')
++    : (raw2 ?? '');
++  let parsed;
++  try {
++    parsed = reflectionAISchema.parse(JSON.parse(text2));
++  } catch (err) {
++    console.error('Reflection JSON parse failed (period):', { text2, err });
++    throw err;
++  }
+```
+
+> 注：若未来切换到 GPT‑5，建议整体改用 Responses API，并据其返回结构提取 `output_text` 或 `output[*].text`，再做 JSON 校验。
+
+---
+
+以上变更可以逐步采纳：A（已实现）提升响应速度；B、C（建议）用于消除时区与 JSON 边界问题，提升稳定性与可观测性。
+
 ## Integration Issues
 
 ### Event System Not Working
