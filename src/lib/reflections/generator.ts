@@ -8,6 +8,7 @@ import {
   getPeriodBounds,
   resolveAnchorDate
 } from './aggregate';
+import type { DailyAggregate } from './aggregate';
 import { reflectionAISchema } from './schema';
 import type { ReflectionCard, ReflectionMode } from './types';
 
@@ -38,12 +39,7 @@ const cleanStats = (stats: Record<string, unknown> | null | undefined) => {
   return Object.fromEntries(filteredEntries);
 };
 
-const buildContextForDaily = ({
-  summary,
-  mood
-}: Awaited<ReturnType<typeof fetchDailyAggregate>>) => {
-  if (!summary) return '';
-
+const buildContextForDaily = ({ summary, mood }: DailyAggregate) => {
   const parts: string[] = [
     `Date: ${summary.date}`,
     `Daily summary: ${summary.summary}`,

@@ -16,9 +16,9 @@ const META_THEME_COLORS = {
 };
 
 export const metadata: Metadata = {
-  title: 'VoiceJournal',
+  title: 'EchoJournal',
   description:
-    'VoiceJournal is a platform for journaling with real time voice native AI.'
+    'Smart journal app to record your thoughts, emotions and reflections with your voice.'
 };
 
 export const viewport: Viewport = {

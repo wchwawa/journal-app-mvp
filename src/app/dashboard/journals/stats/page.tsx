@@ -6,9 +6,8 @@ import { Separator } from '@/components/ui/separator';
 import { useAudioJournal } from '@/hooks/use-audio-journal';
 import { Loader2 } from 'lucide-react';
 
-// export const metadata = {
-//   title: 'Dashboard: Journal Stats'
-// };
+// Note: metadata export is not allowed in a client component page.
+// If metadata is needed, move it to a parent layout or convert this page to a server component wrapper.
 
 function StatsGrid() {
   const { stats, statsLoading, todayEntries } = useAudioJournal();
