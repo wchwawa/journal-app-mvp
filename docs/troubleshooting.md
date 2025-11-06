@@ -611,6 +611,94 @@ LIMIT 3;
 - 执行 `DELETE` 前务必用 `SELECT` 预览同一 WHERE 条件，确保删除目标正确。
 - 代码层面我们已将周期边界改为“本地时区”，后续再生不会再跨月/跨周。
 
+### Build Failed: metadata in client component
+
+**Error**
+```
+x You are attempting to export "metadata" from a component marked with "use client"...
+```
+
+**Cause**：`/dashboard/journals/stats/page.tsx` 是客户端组件 (`'use client'`)，仍导出 `metadata`。
+
+**Fix**
+```diff
+diff --git a/src/app/dashboard/journals/stats/page.tsx b/src/app/dashboard/journals/stats/page.tsx
+@@
+-'use client';
+-
+-import PageContainer from '@/components/layout/page-container';
+-
+-export const metadata = {
+-  title: 'Dashboard: Journal Stats'
+-};
++'use client';
++
++import PageContainer from '@/components/layout/page-container';
++
++// metadata export is not allowed in a client component page.
++// Move it to a parent layout or convert this page to a server wrapper.
+```
+
+### Build Failed: stats payload incompatible with Supabase JSON type
+
+**Error**
+```
+Type error: Argument of type '{ ... stats: { [k: string]: unknown } }' is not assignable to TablesUpdate<'daily_summaries'>...
+```
+
+**Cause**：`cleanStats` 返回 `Record<string, unknown>`，无法赋值给 supabase `Json` 类型；`updatePayload`/`upsertPayload` 未显式使用 Supabase 类型。
+
+**Fix**（节选）
+```diff
+diff --git a/src/lib/reflections/generator.ts b/src/lib/reflections/generator.ts
+@@
+-import { reflectionAISchema } from './schema';
+-import type { ReflectionCard, ReflectionMode } from './types';
++import { reflectionAISchema } from './schema';
++import type { ReflectionCard, ReflectionMode } from './types';
++import type { Json, TablesInsert, TablesUpdate } from '@/types/supabase';
+
+-const MODEL_NAME = process.env.OPENAI_REFLECTION_MODEL ?? 'gpt-5';
++const MODEL_NAME = process.env.OPENAI_REFLECTION_MODEL ?? 'gpt-4o-mini';
+
+-const cleanStats = (stats: Record<string, unknown> | null | undefined) => {
+-  if (!stats) return null;
+-  const filteredEntries = Object.entries(stats).filter(([_, value]) => value != null);
+-  if (filteredEntries.length === 0) return null;
+-  return Object.fromEntries(filteredEntries);
+-};
++type StatsShape = {
++  entryCount?: number;
++  topEmotions?: string[];
++  keywords?: string[];
++} | null | undefined;
++
++const cleanStats = (stats: StatsShape): Json | null => {
++  if (!stats) return null;
++  const obj: Record<string, unknown> = {};
++  if (typeof stats.entryCount === 'number') obj.entryCount = stats.entryCount;
++  if (Array.isArray(stats.topEmotions)) obj.topEmotions = stats.topEmotions;
++  if (Array.isArray(stats.keywords)) obj.keywords = stats.keywords;
++  return Object.keys(obj).length ? (obj as unknown as Json) : null;
++};
+
+-const updatePayload = {
++const updatePayload: TablesUpdate<'daily_summaries'> = {
+   achievements: ...,
+   stats: cleanStats(stats),
+   ...
+};
+
+-const upsertPayload = {
++const upsertPayload: TablesInsert<'period_reflections'> = {
+   user_id: userId,
+   stats: cleanStats(baseStats),
+   ...
+};
+```
+
+> 提示：若未来更换模型，确保 `MODEL_NAME` 与 Supabase JSON 类型同步更新。
+
 ## 修正思路与示例代码（Diff）
 
 本节记录我们对“录音→转写→日总结→Echos 同步”链路的修正方案，并提供可直接参考的代码 Diff（基于现有代码库）。
