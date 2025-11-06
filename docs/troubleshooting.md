@@ -997,8 +997,83 @@ useEffect(() => {
 }, [audioUrl]);
 ```
 
+## Sydney Morning Data Vanishing Due to UTC Day Boundaries (Nov 2025)
+
+### Symptoms Observed
+- 2025‑11‑07 AEST (UTC+11) morning: `DailyMoodWidget` rendered fallback (“Log mood”) with no emoji animation even though Supabase had same‑day mood rows.
+- Journal Library under `/dashboard/journals` failed to show audio entries recorded minutes earlier; data appeared only under the previous day when checking raw tables.
+- Daily summary generation produced a November 6th record even though user had already started November 7th in Sydney.
+
+### Root Cause
+1. Commit `3948ca8755b5ecfd` replaced `today/tomorrow` string comparisons with a “start/end of day” calculation using `Date#setHours(...)` followed by `.toISOString()`.  
+   - Calling `.toISOString()` converts the local midnight (Sydney 00:00) to UTC (previous day 13:00).  
+   - Queries now included the window `[previous-day-13:00Z, same-day-12:59:59Z]`, so every row inserted before ~11:00 AEST was **earlier than the lower bound** and invisible to client code.
+2. Server routes `/api/transcribe` and `/api/generate-daily-summary` still built `currentDate` via `new Date().toISOString().split('T')[0]`, so summaries kept the UTC day stamp while front-end filters switched to “local day” logic. The mismatch meant a user could never get a “today” card until ~11:00.
+
+### Impact
+- Mood modal auto-trigger logic (`src/features/daily-record/components/daily-mood-modal.tsx`) saw no entry for “today” and spammed prompts every morning.
+- Journal list filters and “today streak” stats treated the Sydney morning as missing, breaking streak counts and filtering by date.
+- Daily summaries and Echos cards lagged one day and never referenced the actual local date, producing misleading reflections and misaligned cron jobs.
+
+### Debug & Reasoning Timeline
+1. Confirmed Supabase tables via MCP queries: `daily_question.created_at = 2025-11-06 00:00:59+00` even though the user entered data on the 7th AEST.
+2. Ran `git log` and isolated `3948ca8` as the commit changing the date filter implementation.
+3. Blamed `src/lib/supabase/queries.ts` to see that `start/end` were generated locally but serialized to UTC.
+4. Noticed server routes still using UTC strings for summary date fields, exacerbating list grouping.
+5. Designed a reusable timezone utility to compute “local day → UTC range” instead of peppering ad‑hoc logic across files.
+
+### Remediation Steps
+1. Added `src/lib/timezone.ts` providing:
+   - `getLocalDayRange({ date?, timeZone? })` returning `{ date, start, end }`.
+   - `getUtcRangeForDate(dateString, timeZone?)` for server lookups when a YYYY-MM-DD (local) date must be converted back to UTC.
+   - A cached `Intl.DateTimeFormat` to avoid perf regressions.
+2. Updated all “today” queries (`getTodayMoodEntry`, `getTodayAudioJournals`, streak calculators, mood modal checks) to use local ranges.
+3. Ensured summary generation and journal API routes convert stored `created_at` to the correct local date before grouping or triggering follow-up jobs.
+4. Adjusted Echos UI logic so “current card” detection compares against `getLocalDayRange().date` rather than `new Date().toISOString()`.
+
+### Key Code Diff (excerpt)
+
+```diff
+diff --git a/src/lib/supabase/queries.ts b/src/lib/supabase/queries.ts
+@@
+-import type { SupabaseClient } from '@supabase/supabase-js';
+-import { cache } from 'react';
++import type { SupabaseClient } from '@supabase/supabase-js';
++import { cache } from 'react';
++import { getLocalDayRange, getUtcRangeForDate } from '@/lib/timezone';
+@@
+-    const start = new Date();
+-    start.setHours(0, 0, 0, 0);
+-    const end = new Date();
+-    end.setHours(23, 59, 59, 999);
++    const { start, end } = getLocalDayRange();
+@@
+-      .gte('created_at', start.toISOString())
+-      .lte('created_at', end.toISOString())
++      .gte('created_at', start)
++      .lte('created_at', end)
+@@
+-        const startOfDay = new Date(summary.date);
+-        startOfDay.setHours(0, 0, 0, 0);
+-        const endOfDay = new Date(summary.date);
+-        endOfDay.setHours(23, 59, 59, 999);
++        const { start: dayStart, end: dayEnd } = getUtcRangeForDate(
++          summary.date
++        );
+@@
+-          .gte('created_at', startOfDay.toISOString())
+-          .lte('created_at', endOfDay.toISOString())
++          .gte('created_at', dayStart)
++          .lte('created_at', dayEnd)
+```
+
+### Follow-up Considerations
+- The helper currently defaults to `Australia/Sydney`. Future work should read user profile or organization timezone to avoid hardcoding.
+- Add regression tests (unit + integration) ensuring morning inserts in UTC+ offsets remain queryable as “today”.
+- Document environment variables (`NEXT_PUBLIC_APP_TIMEZONE`, `APP_TIMEZONE`) so deployment targets can override defaults without touching code.
+
 ---
 
-**Last Updated**: 2025-01-17  
+**Last Updated**: 2025-11-07  
 **Maintainer**: Development Team  
 **Next Review**: Monthly
