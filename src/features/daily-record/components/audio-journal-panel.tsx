@@ -14,6 +14,8 @@ import {
   Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import LiveWaveform from './live-waveform';
+import RecordedWaveform from './recorded-waveform';
 
 interface AudioJournalPanelProps {
   className?: string;
@@ -29,6 +31,8 @@ type ProcessingState =
   | 'error';
 
 const MAX_RECORDING_TIME = 10 * 60 * 1000; // 10 minutes in milliseconds
+const WAVE_PRIMARY_COLOR = '#7c3aed';
+const WAVE_SECONDARY_COLOR = '#6d28d9';
 
 export default function AudioJournalPanel({
   className
@@ -44,6 +48,7 @@ export default function AudioJournalPanel({
   const [summary, setSummary] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -60,6 +65,7 @@ export default function AudioJournalPanel({
     setSummary('');
     setError(null);
     setIsPlaying(false);
+    setLiveStream(null);
 
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -85,6 +91,7 @@ export default function AudioJournalPanel({
       }
 
       if (streamRef.current) {
+        setLiveStream(null);
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
@@ -104,6 +111,7 @@ export default function AudioJournalPanel({
       });
 
       streamRef.current = stream;
+      setLiveStream(stream);
 
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
@@ -223,6 +231,11 @@ export default function AudioJournalPanel({
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      if (streamRef.current) {
+        setLiveStream(null);
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
     }
 
     // Reset states
@@ -247,6 +260,7 @@ export default function AudioJournalPanel({
     setIsPlaying(false);
     setTranscription('');
     setSummary('');
+    setLiveStream(null);
 
     // Clear any processing state
     setProcessingState('idle');
@@ -342,12 +356,13 @@ export default function AudioJournalPanel({
 
   const isRecording = recordingState === 'recording';
   const isPaused = recordingState === 'paused';
-  const hasRecording = recordingState === 'stopped' && audioBlob;
+  const hasRecording = recordingState === 'stopped' && !!audioBlob;
   const isProcessing =
     processingState !== 'idle' && processingState !== 'complete';
   const isComplete = processingState === 'complete';
   const canProcess =
     hasRecording && !isProcessing && processingState === 'idle';
+  const recordedBlob = hasRecording && audioBlob ? audioBlob : null;
 
   return (
     <div className={cn('mx-auto w-full max-w-sm', className)}>
@@ -377,6 +392,33 @@ export default function AudioJournalPanel({
           <div className='text-muted-foreground text-center text-[11px]'>
             Max {formatTime(MAX_RECORDING_TIME)}
           </div>
+        </div>
+
+        {/* Waveform visual */}
+        <div className='bg-muted/30 border-border/40 relative rounded-2xl border p-3'>
+          {liveStream && recordingState !== 'stopped' ? (
+            <LiveWaveform
+              stream={liveStream}
+              isActive={recordingState === 'recording'}
+              waveColor={WAVE_PRIMARY_COLOR}
+              height={56}
+            />
+          ) : null}
+
+          {recordedBlob ? (
+            <RecordedWaveform
+              blob={recordedBlob}
+              waveColor={WAVE_PRIMARY_COLOR}
+              progressColor={WAVE_SECONDARY_COLOR}
+              height={56}
+            />
+          ) : null}
+
+          {!liveStream && !hasRecording ? (
+            <div className='text-muted-foreground/70 text-center text-xs'>
+              Waveform preview will appear while recording.
+            </div>
+          ) : null}
         </div>
 
         {/* Main Recording Button */}
