@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
 import { syncReflectionsForDate } from '@/lib/reflections/sync';
+import { getLocalDayRange } from '@/lib/timezone';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -14,18 +15,17 @@ async function generateDailySummary(
   supabase: any,
   openaiClient: OpenAI
 ) {
-  const currentDate = new Date().toISOString().split('T')[0];
+  const {
+    date: currentDate,
+    start: dayStart,
+    end: dayEnd
+  } = getLocalDayRange();
 
   console.log(
     `Generating daily summary for user ${userId} on date ${currentDate}`
   );
 
   // Step 1: Get all transcripts for today
-  const startOfDay = new Date(currentDate);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(currentDate);
-  endOfDay.setHours(23, 59, 59, 999);
-
   const { data: transcripts, error: transcriptsError } = await supabase
     .from('transcripts')
     .select(
@@ -40,8 +40,8 @@ async function generateDailySummary(
     `
     )
     .eq('user_id', userId)
-    .gte('audio_files.created_at', startOfDay.toISOString())
-    .lte('audio_files.created_at', endOfDay.toISOString())
+    .gte('audio_files.created_at', dayStart)
+    .lte('audio_files.created_at', dayEnd)
     .order('created_at', { ascending: true });
 
   if (transcriptsError) {
@@ -59,8 +59,8 @@ async function generateDailySummary(
     .from('daily_question')
     .select('day_quality, emotions')
     .eq('user_id', userId)
-    .gte('created_at', startOfDay.toISOString())
-    .lte('created_at', endOfDay.toISOString())
+    .gte('created_at', dayStart)
+    .lte('created_at', dayEnd)
     .single();
 
   if (moodError && moodError.code !== 'PGRST116') {

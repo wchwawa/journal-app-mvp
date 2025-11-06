@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
+import { getLocalDayRange } from '@/lib/timezone';
 
 export async function PUT(
   request: NextRequest,
@@ -70,7 +71,7 @@ export async function PUT(
 
     // Trigger daily summary regeneration
     const audioCreatedAt = new Date(audioFile.created_at || new Date());
-    const entryDate = audioCreatedAt.toISOString().split('T')[0];
+    const { date: entryDate } = getLocalDayRange({ date: audioCreatedAt });
 
     fetch(`${request.nextUrl.origin}/api/generate-daily-summary`, {
       method: 'POST',
@@ -177,7 +178,7 @@ export async function DELETE(
 
     // Trigger daily summary regeneration
     const audioCreatedAt = new Date(audioFile.created_at || new Date());
-    const entryDate = audioCreatedAt.toISOString().split('T')[0];
+    const { date: entryDate } = getLocalDayRange({ date: audioCreatedAt });
 
     fetch(`${request.nextUrl.origin}/api/generate-daily-summary`, {
       method: 'POST',

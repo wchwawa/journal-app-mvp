@@ -20,6 +20,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { createClient } from '@/lib/supabase/client';
+import { getLocalDayRange } from '@/lib/timezone';
 import { TablesInsert, Tables } from '@/types/supabase';
 
 const DAY_QUALITY_OPTIONS = [
@@ -52,17 +53,14 @@ const DailyMoodModal = forwardRef<DailyMoodModalRef, DailyMoodModalProps>(
     const checkDailyEntry = useCallback(async () => {
       if (!user?.id) return null;
 
-      const today = new Date().toISOString().split('T')[0];
+      const { start, end } = getLocalDayRange();
 
       const { data, error } = await supabase
         .from('daily_question')
         .select('*')
         .eq('user_id', user.id)
-        .gte('created_at', today)
-        .lt(
-          'created_at',
-          new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        )
+        .gte('created_at', start)
+        .lte('created_at', end)
         .single();
 
       if (error && error.code === 'PGRST116') {

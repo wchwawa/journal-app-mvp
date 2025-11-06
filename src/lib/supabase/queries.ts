@@ -1,6 +1,7 @@
 import type { Database } from '@/types/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cache } from 'react';
+import { getLocalDayRange, getUtcRangeForDate } from '@/lib/timezone';
 
 // Type for the Supabase client with your database schema
 type TypedSupabaseClient = SupabaseClient<Database>;
@@ -15,17 +16,14 @@ export const getTodayMoodEntry = cache(
   async (supabase: TypedSupabaseClient, userId: string) => {
     if (!userId) return null;
 
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
+    const { start, end } = getLocalDayRange();
 
     const { data, error } = await supabase
       .from('daily_question')
       .select('*')
       .eq('user_id', userId)
-      .gte('created_at', start.toISOString())
-      .lte('created_at', end.toISOString())
+      .gte('created_at', start)
+      .lte('created_at', end)
       .single();
 
     if (error && error.code === 'PGRST116') {
@@ -89,10 +87,7 @@ export const getTodayAudioJournals = cache(
   async (supabase: TypedSupabaseClient, userId: string) => {
     if (!userId) return [];
 
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
+    const { start, end } = getLocalDayRange();
 
     const { data, error } = await supabase
       .from('audio_files')
@@ -108,8 +103,8 @@ export const getTodayAudioJournals = cache(
       `
       )
       .eq('user_id', userId)
-      .gte('created_at', start.toISOString())
-      .lte('created_at', end.toISOString())
+      .gte('created_at', start)
+      .lte('created_at', end)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -169,15 +164,18 @@ export const getAudioJournalStats = cache(
     if (!recentError && recentEntries) {
       const today = new Date();
       const dates = new Set(
-        recentEntries.map(
-          (entry) => new Date(entry.created_at!).toISOString().split('T')[0]
-        )
+        recentEntries.map((entry) => {
+          const { date } = getLocalDayRange({
+            date: new Date(entry.created_at!)
+          });
+          return date;
+        })
       );
 
       for (let i = 0; i < 30; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(checkDate.getDate() - i);
-        const dateString = checkDate.toISOString().split('T')[0];
+        const { date: dateString } = getLocalDayRange({ date: checkDate });
 
         if (dates.has(dateString)) {
           currentStreak++;
@@ -262,10 +260,9 @@ export const getJournalsWithSummaries = cache(
     // For each summary, fetch the corresponding journal entries
     const journalsWithSummaries = await Promise.all(
       (summaries || []).map(async (summary) => {
-        const startOfDay = new Date(summary.date);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(summary.date);
-        endOfDay.setHours(23, 59, 59, 999);
+        const { start: dayStart, end: dayEnd } = getUtcRangeForDate(
+          summary.date
+        );
 
         const { data: journals, error: journalsError } = await supabase
           .from('audio_files')
@@ -282,8 +279,8 @@ export const getJournalsWithSummaries = cache(
           `
           )
           .eq('user_id', userId)
-          .gte('created_at', startOfDay.toISOString())
-          .lte('created_at', endOfDay.toISOString())
+          .gte('created_at', dayStart)
+          .lte('created_at', dayEnd)
           .order('created_at', { ascending: true });
 
         if (journalsError) {
@@ -299,8 +296,8 @@ export const getJournalsWithSummaries = cache(
           .from('daily_question')
           .select('*')
           .eq('user_id', userId)
-          .gte('created_at', startOfDay.toISOString())
-          .lte('created_at', endOfDay.toISOString())
+          .gte('created_at', dayStart)
+          .lte('created_at', dayEnd)
           .single();
 
         return {

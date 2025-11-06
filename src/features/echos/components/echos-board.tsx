@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, RefreshCw, Wand2 } from 'lucide-react';
 import type { ReflectionCard, ReflectionMode } from '@/lib/reflections/types';
+import { getLocalDayRange } from '@/lib/timezone';
 
 interface EditState {
   achievements: string;
@@ -70,13 +71,13 @@ const formatPeriod = (card: ReflectionCard) => {
 };
 
 const isCurrentPeriod = (card: ReflectionCard) => {
-  const today = new Date();
+  const { date: todayDate } = getLocalDayRange();
 
   if (card.period.type === 'daily' && card.period.date) {
-    return card.period.date === today.toISOString().split('T')[0];
+    return card.period.date === todayDate;
   }
 
-  return isWithinInterval(today, {
+  return isWithinInterval(todayDate, {
     start: parseISO(card.period.start),
     end: parseISO(card.period.end)
   });
@@ -304,7 +305,7 @@ export function EchosBoard() {
       setGenerating(true);
       setError(null);
       // For weekly/monthly, if current view不是进行中的卡片，则以今天为锚点生成当期卡片
-      const todayISO = new Date().toISOString().split('T')[0];
+      const { date: todayISO } = getLocalDayRange();
       const effectiveAnchor =
         mode === 'daily'
           ? (anchorDate ?? todayISO)
