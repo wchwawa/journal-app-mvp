@@ -72,8 +72,8 @@ export default function LiveWaveform({
       const recordPlugin = wavesurfer.registerPlugin(
         RecordPlugin.create({
           renderRecordedAudio: false,
-          continuousWaveform: true,
-          continuousWaveformDuration: 600
+          scrollingWaveform: true,
+          scrollingWaveformWindow: 15
         })
       );
 
