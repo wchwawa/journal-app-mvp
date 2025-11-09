@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import {
   Mic,
   Square,
@@ -16,6 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 import LiveWaveform from './live-waveform';
 import RecordedWaveform from './recorded-waveform';
+import { AnimatePresence, motion } from 'motion/react';
 
 interface AudioJournalPanelProps {
   className?: string;
@@ -31,6 +31,13 @@ type ProcessingState =
   | 'error';
 
 const MAX_RECORDING_TIME = 10 * 60 * 1000; // 10 minutes in milliseconds
+const JOURNAL_FACTS = [
+  '🧠 Daily journaling helps your brain spot positive emotions more easily.',
+  '🌙 Noting three small wins before bed helps you fall asleep.',
+  '🎯 Writing down goals makes them 42% more likely to happen.',
+  '❤️ Listing what you‘re grateful for can reduce stress hormones.',
+  '☀️ Morning journaling helps you stay 25% more focused throughout the day.'
+];
 const WAVE_PRIMARY_COLOR = '#7c3aed';
 const WAVE_SECONDARY_COLOR = '#6d28d9';
 
@@ -49,6 +56,8 @@ export default function AudioJournalPanel({
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
+  const [factIndex, setFactIndex] = useState(0);
+  const [typedChars, setTypedChars] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -323,10 +332,6 @@ export default function AudioJournalPanel({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const getProgressPercent = () => {
-    return Math.min((recordingTime / MAX_RECORDING_TIME) * 100, 100);
-  };
-
   const getStatusText = () => {
     switch (processingState) {
       case 'transcribing':
@@ -343,7 +348,7 @@ export default function AudioJournalPanel({
         if (recordingState === 'recording') return 'Recording in progress...';
         if (recordingState === 'paused') return 'Recording paused';
         if (recordingState === 'stopped') return 'Recording complete';
-        return 'Ready to record your thoughts';
+        return '';
     }
   };
 
@@ -363,39 +368,62 @@ export default function AudioJournalPanel({
   const canProcess =
     hasRecording && !isProcessing && processingState === 'idle';
   const recordedBlob = hasRecording && audioBlob ? audioBlob : null;
+  const showIdleFact = recordingState === 'idle' && !audioBlob;
+  const currentFact = JOURNAL_FACTS[factIndex];
+  const typedFact = showIdleFact ? currentFact.slice(0, typedChars) : '';
+
+  useEffect(() => {
+    if (!showIdleFact) {
+      setTypedChars(0);
+      return;
+    }
+
+    setTypedChars(0);
+    const target = currentFact.length;
+    const typingInterval = setInterval(() => {
+      setTypedChars((prev) => {
+        if (prev >= target) {
+          clearInterval(typingInterval);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 40);
+
+    return () => clearInterval(typingInterval);
+  }, [currentFact, showIdleFact, factIndex]);
+
+  useEffect(() => {
+    if (!showIdleFact) return;
+    const dwellDuration = Math.max(3500, currentFact.length * 65);
+    const dwellTimeout = setTimeout(() => {
+      setFactIndex((prev) => (prev + 1) % JOURNAL_FACTS.length);
+    }, dwellDuration);
+
+    return () => clearTimeout(dwellTimeout);
+  }, [showIdleFact, currentFact, factIndex]);
 
   return (
-    <div className={cn('mx-auto w-full max-w-sm', className)}>
-      {/* Central recording interface */}
-      <div className='space-y-5 p-4'>
-        {/* Title */}
-        <div className='space-y-1.5 text-center'>
+    <div className={cn('mx-auto w-full max-w-md', className)}>
+      <div className='border-border/30 bg-card/90 space-y-5 rounded-3xl border p-6 shadow-lg'>
+        <div className='text-center'>
           <h2 className='text-foreground text-xl font-semibold tracking-tight'>
-            Voice journal
+            Record Your Journal
           </h2>
-          <p className='text-muted-foreground text-xs leading-relaxed'>
-            Capture a quick audio note and let AI tidy it up.
-          </p>
         </div>
 
-        {/* Recording Status */}
-        <div className='space-y-3 text-center'>
-          <div className='text-foreground font-mono text-2xl font-semibold'>
+        <div className='flex flex-col items-center gap-2 text-center'>
+          <div className='text-foreground font-mono text-2xl font-semibold tabular-nums'>
             {formatTime(recordingTime)}
           </div>
-          <div className='text-muted-foreground text-xs'>{getStatusText()}</div>
+          {getStatusText() ? (
+            <div className='text-muted-foreground text-xs'>
+              {getStatusText()}
+            </div>
+          ) : null}
         </div>
 
-        {/* Progress Bar */}
-        <div className='space-y-1.5'>
-          <Progress value={getProgressPercent()} className='bg-muted h-1.5' />
-          <div className='text-muted-foreground text-center text-[11px]'>
-            Max {formatTime(MAX_RECORDING_TIME)}
-          </div>
-        </div>
-
-        {/* Waveform visual */}
-        <div className='bg-muted/30 border-border/40 relative rounded-2xl border p-3'>
+        <div className='relative h-16 w-full overflow-hidden rounded-xl'>
           {liveStream && recordingState !== 'stopped' ? (
             <LiveWaveform
               stream={liveStream}
@@ -414,18 +442,37 @@ export default function AudioJournalPanel({
             />
           ) : null}
 
-          {!liveStream && !hasRecording ? (
-            <div className='text-muted-foreground/70 text-center text-xs'>
-              Waveform preview will appear while recording.
-            </div>
-          ) : null}
+          <AnimatePresence mode='wait'>
+            {showIdleFact ? (
+              <motion.div
+                key={factIndex}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.4 }}
+                className='pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-medium'
+              >
+                <span
+                  className='from-primary bg-gradient-to-r via-pink-500 to-orange-400 bg-clip-text text-transparent'
+                  style={{
+                    fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  {typedFact || '\u00A0'}
+                  <span className='text-primary ml-1 inline-block animate-pulse'>
+                    |
+                  </span>
+                </span>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </div>
 
-        {/* Main Recording Button */}
-        <div className='flex justify-center'>
+        <div className='flex w-full justify-center'>
           {!hasRecording ? (
-            <div className='flex items-center gap-4'>
-              {/* Primary Recording Button */}
+            <div className='flex w-full max-w-xs flex-col items-center gap-4'>
               <Button
                 onClick={
                   isRecording
@@ -443,7 +490,7 @@ export default function AudioJournalPanel({
                     ? 'bg-red-500 hover:bg-red-600'
                     : isPaused
                       ? 'bg-green-500 hover:bg-green-600'
-                      : 'bg-primary hover:bg-primary/90 hover:scale-105'
+                      : 'bg-primary hover:bg-primary/90'
                 )}
               >
                 {isRecording ? (
@@ -455,14 +502,13 @@ export default function AudioJournalPanel({
                 )}
               </Button>
 
-              {/* Secondary Controls */}
               {(isRecording || isPaused) && (
-                <div className='flex flex-col gap-2'>
+                <div className='flex w-full items-center justify-center gap-3'>
                   {isRecording && (
                     <Button
                       onClick={pauseRecording}
                       variant='outline'
-                      size='sm'
+                      size='icon'
                       className='h-12 w-12 rounded-full'
                     >
                       <Pause className='h-4 w-4' />
@@ -471,7 +517,7 @@ export default function AudioJournalPanel({
                   <Button
                     onClick={restartRecording}
                     variant='outline'
-                    size='sm'
+                    size='icon'
                     className='h-12 w-12 rounded-full'
                   >
                     <RotateCcw className='h-4 w-4' />
@@ -480,12 +526,12 @@ export default function AudioJournalPanel({
               )}
             </div>
           ) : (
-            <div className='flex items-center gap-4'>
+            <div className='flex w-full flex-wrap items-center justify-center gap-3'>
               <Button
                 onClick={toggleAudioPlayback}
                 variant='outline'
-                size='lg'
-                className='h-16 w-16 rounded-full'
+                size='icon'
+                className='h-14 w-14 rounded-full'
               >
                 {isPlaying ? (
                   <Pause className='h-6 w-6' />
@@ -497,8 +543,8 @@ export default function AudioJournalPanel({
               <Button
                 onClick={discardRecording}
                 variant='outline'
-                size='lg'
-                className='h-16 w-16 rounded-full border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50'
+                size='icon'
+                className='h-14 w-14 rounded-full border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50'
               >
                 <Trash2 className='h-6 w-6' />
               </Button>
@@ -506,8 +552,7 @@ export default function AudioJournalPanel({
               <Button
                 onClick={processAudio}
                 disabled={!canProcess}
-                size='lg'
-                className='rounded-full px-8 py-4 shadow-lg hover:shadow-xl'
+                className='min-w-[160px] rounded-full px-6 py-3 shadow-lg hover:shadow-xl'
               >
                 {isProcessing ? (
                   <Loader2 className='mr-2 h-5 w-5 animate-spin' />

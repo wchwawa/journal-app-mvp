@@ -10,17 +10,9 @@
 
 ### Design Principles
 
-- **Conversation-First**: Organize information architecture around conversation flows
-- **Progressive Disclosure**: Intelligently surface relevant information to avoid cognitive overload
-- **Seamless Transitions**: Natural switching between voice, text, and touch modalities
-- **Personalized Memory**: Leverage Mem0 to continuously optimize individual experiences
 
 ### Visual Standards
 
-- **Soft Tech Aesthetic**: Blend DaisyUI + shadcn components harmoniously
-- **Dynamic Feedback**: Subtle micro-interactions to reinforce real-time feel
-- **Dark Mode Friendly**: Support light/dark themes for extended usage comfort
-- **Type-Safe**: Nuqs ensures predictable URL state management
 
 ### Color System
 
