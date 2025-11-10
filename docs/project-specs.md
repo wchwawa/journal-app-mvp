@@ -279,7 +279,14 @@ Echos 以固定周期（Daily、Weekly、Monthly）生成结构化的反思卡�
 
 ## Module C: AI voice companion
 
-**goal** 用户的私人日记伴侣，提供基于AI的自然的语音交互体验，给用户提供情绪价值如激励，宽慰，安抚，庆祝
+**goal** 用户的私人日记伴侣，提供基于AI的自然的语音交互体验，智能调用用户的日记结构化数据作为上下文，给用户提供情绪价值的同时帮助用户reflection曾经发生的事，
 
-### agent context strategy
-TBD
+**user story** 我想要一个可以用声音对话的AI的智能小助手，在我想要回顾我日记里记录内容的时候，他可以帮我回忆，并且按照我想要的角色（语气），给我到我足够的情绪价值。
+
+**basic features**
+1. 一个使用音频交互的AI agent，名字叫Echo，他的tool是：1. 智能调用用户的日记结构化数据作为上下文。2. 网络搜索
+2. 提供不同的voice profile, 可供不同风格的用户选择， 我目前的方案是：冷静平和男， 冷静平和女，温柔细腻男声，温柔细腻女声，活泼可爱男，活泼可爱女，圣诞老人（圣诞季特别声线）
+3. 功能按钮以AI风格的悬浮球形式呈现，无论当前端点（需要登录后）/ 或者放置在Echos端点下，统一AI相关功能入口
+4. （optional）对话可以选择以文字形式实时渲染
+
+**overall expectation** Siri-like AI assistant，整体的感觉就类似siri，点击功能按钮就activate voice agent, 即可开始语音对话。
