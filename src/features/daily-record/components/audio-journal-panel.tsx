@@ -31,11 +31,11 @@ type ProcessingState =
 
 const MAX_RECORDING_TIME = 10 * 60 * 1000; // 10 minutes in milliseconds
 const JOURNAL_FACTS = [
-  '🧠 Daily journaling helps your brain spot positive emotions more easily.',
+  '🧠 Daily journaling helps your brain spot positive emotions faster.',
   '🌙 Noting three small wins before bed helps you fall asleep.',
   '🎯 Writing down goals makes them 42% more likely to happen.',
-  '❤️ Listing what you‘re grateful for can reduce stress hormones.',
-  '☀️ Morning journaling helps you stay 25% more focused throughout the day.'
+  '❤️ Listing what you’re grateful for eases stress hormones.',
+  '☀️ Morning journaling keeps you focused 25% longer.'
 ];
 const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
 const WAVE_PRIMARY_COLOR = '#7c3aed';
@@ -421,7 +421,12 @@ export default function AudioJournalPanel({
           ) : null}
         </div>
 
-        <div className='relative h-16 w-full overflow-hidden rounded-xl'>
+        <div
+          className={cn(
+            'relative w-full overflow-hidden rounded-xl transition-[min-height] duration-300',
+            showIdleFact ? 'min-h-[96px]' : 'min-h-[64px]'
+          )}
+        >
           {liveStream && recordingState !== 'stopped' ? (
             <LiveWaveform
               stream={liveStream}
@@ -441,7 +446,7 @@ export default function AudioJournalPanel({
           ) : null}
 
           {showIdleFact ? (
-            <div className='pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-medium'>
+            <div className='pointer-events-none absolute inset-0 flex items-center justify-center px-4 py-2 text-center text-sm font-medium'>
               <span
                 className='from-primary bg-gradient-to-r via-pink-500 to-orange-400 bg-clip-text text-transparent'
                 style={{
