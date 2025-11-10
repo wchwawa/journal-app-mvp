@@ -85,3 +85,8 @@ next-env.d.ts
 supabase/.temp/
 supabase/.branches/
 supabase/.env
+
+/sample_agent
+/docs
+
+src.zip

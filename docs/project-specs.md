@@ -289,4 +289,9 @@ Echos 以固定周期（Daily、Weekly、Monthly）生成结构化的反思卡�
 3. 功能按钮以AI风格的悬浮球形式呈现，无论当前端点（需要登录后）/ 或者放置在Echos端点下，统一AI相关功能入口
 4. （optional）对话可以选择以文字形式实时渲染
 
+**sample user workflow**
+activate agent -> the agent greeting to user -> user prompt(voice) back -> so on...
+
+activate agent -> the agent greeting to user -> user ask remind them anything they need to be done these days -> agent call tools to retrive user personal journaling data as context, then agent respond
+
 **overall expectation** Siri-like AI assistant，整体的感觉就类似siri，点击功能按钮就activate voice agent, 即可开始语音对话。
