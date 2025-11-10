@@ -109,10 +109,15 @@ export function useVoiceAgent() {
             .optional()
         }),
         execute: async (input) => {
+          const payload = { ...input };
+          if (payload.anchorDate == null) delete payload.anchorDate;
+          if (payload.limit == null) delete payload.limit;
+          if (payload.range == null) delete payload.range;
+
           const response = await fetch('/api/agent/tools/context', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(input)
+            body: JSON.stringify(payload)
           });
 
           if (!response.ok) {
@@ -165,13 +170,6 @@ export function useVoiceAgent() {
       const newSession = new RealtimeSession(agent, {
         model
       });
-
-      if (process.env.NODE_ENV !== 'production') {
-        try {
-          const previewConfig = await newSession.getInitialSessionConfig();
-          console.debug('voice agent config', previewConfig);
-        } catch {}
-      }
 
       newSession.on('agent_end', (_ctx, _agent, output) => {
         if (output) {
