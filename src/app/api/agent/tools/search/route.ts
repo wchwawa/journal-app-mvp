@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    // @ts-expect-error: web_search is a valid tool type
     const response = await openai.responses.create({
       model: SEARCH_MODEL,
       max_output_tokens: 600,

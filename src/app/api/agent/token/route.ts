@@ -5,6 +5,7 @@ import OpenAI from 'openai';
 
 const REALTIME_MODEL = 'gpt-realtime';
 
+// Issue ephemeral token for realtime client connections
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth();
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const session = await openai.beta.realtime.sessions.create({
       // type: "realtime",
+      // @ts-expect-error: backend accepts gpt-realtime even though client types lag behind
       model: REALTIME_MODEL
     });
 

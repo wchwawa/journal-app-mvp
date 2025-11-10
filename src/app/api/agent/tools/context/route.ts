@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fetchUserContext } from '@/lib/agent/context';
+import type { ContextRequest } from '@/lib/agent/context';
 
 const payloadSchema = z.object({
   scope: z
@@ -22,6 +23,7 @@ const payloadSchema = z.object({
     .optional()
 });
 
+// Handle context retrieval for agent tool requests
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
@@ -31,7 +33,11 @@ export async function POST(request: NextRequest) {
     }
 
     const raw = await request.json();
-    const payload = payloadSchema.parse(raw);
+    const parsed = payloadSchema.parse(raw);
+    const payload: ContextRequest = {
+      ...parsed,
+      anchorDate: parsed.anchorDate ?? undefined
+    };
 
     if (payload.scope === 'custom' && !payload.range) {
       return NextResponse.json(
