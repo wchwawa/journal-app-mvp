@@ -164,6 +164,46 @@ const MyComponent = ({ neededProp, ...rest }: Props) => {
 };
 ```
 
+#### 2. wavesurfer.js Record Plugin Missing Types
+**Error**
+```
+TS7016: Could not find a declaration file for module 'wavesurfer.js/dist/plugins/record.esm.js'
+```
+
+**Cause**: The plugin ships its type definitions as `record.d.ts` while the runtime import path is `record.esm.js`, so TypeScript cannot auto-resolve the declaration when `moduleResolution` is set to `node`.
+
+**Fix**:
+1. Create `src/types/wavesurfer-record.d.ts`:
+   ```ts
+   declare module 'wavesurfer.js/dist/plugins/record.esm.js' {
+     import RecordPlugin from 'wavesurfer.js/dist/plugins/record.js';
+     export default RecordPlugin;
+   }
+   ```
+2. Ensure `tsconfig.json` includes the `src` directory (already true in this repo). Restart the dev server so the shim is picked up.
+
+#### 3. Live Waveform Rendering Blank
+**Symptoms**: The audio recorder works, but the live waveform never animates.
+
+**Cause**: `renderMicStream()` was called before the Record plugin finished registering, so no analyser loop ever ran.
+
+**Fix**:
+- Track an `isPluginReady` flag in `LiveWaveform`.
+- Only call `renderMicStream(stream)` once WaveSurfer + plugin are instantiated.
+- Tear down analyser intervals in the cleanup function to avoid zombie listeners.
+
+### UI & Animation Issues
+
+#### 1. Typewriter Facts Only Show Part of the Sentence
+**Cause**: The idle fact banner used `white-space: nowrap` and `overflow: hidden`, so long copy was clipped, especially on mobile.
+
+**Fix**: Switch to `white-space: pre-wrap` / `word-break: break-word` and drive the typing effect with a `typedChars` counter so the text naturally wraps while it grows.
+
+#### 2. Emoji Lose Their Native Color
+**Cause**: Wrapping the entire string in a gradient text span causes emoji glyphs to inherit the gradient, leaving them monochrome outlines.
+
+**Fix**: While rendering each character, detect emoji via the Unicode `Extended_Pictographic` regex and render them inside a plain `text-foreground` span (without gradient). Non-emoji characters remain in the gradient span so the overall typography stays on-brand.
+
 ### Database Issues
 
 #### 1. Supabase RLS Policies

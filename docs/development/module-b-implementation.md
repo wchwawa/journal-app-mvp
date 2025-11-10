@@ -175,7 +175,13 @@ Allows light editing of a week/month card; sets edited=true.
   - In‑progress badge for current week/month
   - last_generated_at timestamp
   - Edited badge
-  - Minimal charts/tags for mood (can be iterated later)
+- Minimal charts/tags for mood (can be iterated later)
+
+### 2025-11-06 — Voice Recorder UX Alignment
+
+- Added idle-state journaling facts (typewriter copy + emoji) inside the audio recorder widget to gently nudge users toward Module B reflections even before they record.
+- Facts only appear when no recording is in progress/completed so they never obscure real-time waves or playback controls.
+- Copywriting tone matches the Day/Week/Month reflection cards (short, affirmative, data-backed statements) to keep Module B messaging consistent throughout the dashboard.
 
 
 ## User Stories

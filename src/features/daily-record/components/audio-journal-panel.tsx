@@ -15,7 +15,6 @@ import {
 import { cn } from '@/lib/utils';
 import LiveWaveform from './live-waveform';
 import RecordedWaveform from './recorded-waveform';
-import { AnimatePresence, motion } from 'motion/react';
 
 interface AudioJournalPanelProps {
   className?: string;
@@ -38,6 +37,7 @@ const JOURNAL_FACTS = [
   '❤️ Listing what you‘re grateful for can reduce stress hormones.',
   '☀️ Morning journaling helps you stay 25% more focused throughout the day.'
 ];
+const EMOJI_REGEX = /\p{Extended_Pictographic}/u;
 const WAVE_PRIMARY_COLOR = '#7c3aed';
 const WAVE_SECONDARY_COLOR = '#6d28d9';
 
@@ -58,6 +58,7 @@ export default function AudioJournalPanel({
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
   const [factIndex, setFactIndex] = useState(0);
   const [typedChars, setTypedChars] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -375,33 +376,30 @@ export default function AudioJournalPanel({
   useEffect(() => {
     if (!showIdleFact) {
       setTypedChars(0);
+      setIsDeleting(false);
       return;
     }
 
-    setTypedChars(0);
-    const target = currentFact.length;
-    const typingInterval = setInterval(() => {
-      setTypedChars((prev) => {
-        if (prev >= target) {
-          clearInterval(typingInterval);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 40);
+    if (!isDeleting && typedChars === currentFact.length) {
+      const pause = setTimeout(() => setIsDeleting(true), 1200);
+      return () => clearTimeout(pause);
+    }
 
-    return () => clearInterval(typingInterval);
-  }, [currentFact, showIdleFact, factIndex]);
-
-  useEffect(() => {
-    if (!showIdleFact) return;
-    const dwellDuration = Math.max(3500, currentFact.length * 65);
-    const dwellTimeout = setTimeout(() => {
+    if (isDeleting && typedChars === 0) {
+      setIsDeleting(false);
       setFactIndex((prev) => (prev + 1) % JOURNAL_FACTS.length);
-    }, dwellDuration);
+      return;
+    }
 
-    return () => clearTimeout(dwellTimeout);
-  }, [showIdleFact, currentFact, factIndex]);
+    const tick = setTimeout(
+      () => {
+        setTypedChars((prev) => prev + (isDeleting ? -1 : 1));
+      },
+      isDeleting ? 25 : 45
+    );
+
+    return () => clearTimeout(tick);
+  }, [showIdleFact, currentFact, typedChars, isDeleting]);
 
   return (
     <div className={cn('mx-auto w-full max-w-md', className)}>
@@ -442,32 +440,35 @@ export default function AudioJournalPanel({
             />
           ) : null}
 
-          <AnimatePresence mode='wait'>
-            {showIdleFact ? (
-              <motion.div
-                key={factIndex}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.4 }}
-                className='pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-medium'
+          {showIdleFact ? (
+            <div className='pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-medium'>
+              <span
+                className='from-primary bg-gradient-to-r via-pink-500 to-orange-400 bg-clip-text text-transparent'
+                style={{
+                  fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
+                }}
               >
-                <span
-                  className='from-primary bg-gradient-to-r via-pink-500 to-orange-400 bg-clip-text text-transparent'
-                  style={{
-                    fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word'
-                  }}
-                >
-                  {typedFact || '\u00A0'}
-                  <span className='text-primary ml-1 inline-block animate-pulse'>
-                    |
-                  </span>
+                {Array.from(typedFact || '\u00A0').map((char, idx) =>
+                  EMOJI_REGEX.test(char) ? (
+                    <span
+                      key={`emoji-${idx}`}
+                      className='text-foreground'
+                      style={{ WebkitTextFillColor: 'currentColor' }}
+                    >
+                      {char}
+                    </span>
+                  ) : (
+                    <span key={`char-${idx}`}>{char}</span>
+                  )
+                )}
+                <span className='text-primary ml-1 inline-block animate-pulse'>
+                  |
                 </span>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+              </span>
+            </div>
+          ) : null}
         </div>
 
         <div className='flex w-full justify-center'>

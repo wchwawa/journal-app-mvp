@@ -123,6 +123,7 @@
    - **Design**: Clean interface following "Intelligent Minimalism"
    - **Visual hierarchy**: Central focus with two-column layout
    - **Real-time stats**: Display total entries, weekly count, streak
+   - **Idle microcopy**: When no recording is active, the waveform area cycles through journaling facts (emoji-supported, typewriter animation) to keep the widget feeling alive without interfering with live or playback states.
 
 5. **Technical Implementation**
    - **API endpoint**: `/api/transcribe` with multipart form data
