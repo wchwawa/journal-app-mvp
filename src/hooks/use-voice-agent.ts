@@ -96,7 +96,7 @@ export function useVoiceAgent() {
       const contextTool = tool({
         name: 'fetch_user_context',
         description:
-          'Read structured reflections, moods, and summaries for the authenticated user.',
+          'Read structured reflections, moods, and summaries for the authenticated user. Translate natural-language timeframes into precise parameters: "yesterday" -> { scope: "today", anchorDate: <yesterday> }, "last week" -> { scope: "week", anchorDate: <previous Monday> }, explicit ranges -> { scope: "custom", range: { start, end } }. Always set anchorDate or range whenever the user references a period other than today.',
         parameters: z.object({
           scope: z
             .enum(['today', 'week', 'month', 'recent', 'custom'])

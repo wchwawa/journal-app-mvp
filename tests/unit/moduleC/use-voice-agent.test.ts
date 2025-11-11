@@ -8,19 +8,26 @@ const closeSpy = vi.fn();
 const onSpy = vi.fn();
 
 vi.mock('@openai/agents-realtime', () => {
-  class FakeSession {
+  class FakeRealtimeAgent {
+    constructor(_options: unknown) {}
+  }
+
+  class FakeRealtimeSession {
+    constructor(
+      public agent: unknown,
+      public options: unknown
+    ) {}
+
     connect = connectSpy;
     mute = muteSpy;
     close = closeSpy;
     on = onSpy;
   }
 
-  const FakeRealtimeSession = vi.fn(() => new FakeSession());
   const toolSpy = vi.fn().mockImplementation((config) => config);
-  const fakeAgent = vi.fn().mockImplementation(() => ({}));
 
   return {
-    RealtimeAgent: fakeAgent,
+    RealtimeAgent: FakeRealtimeAgent,
     RealtimeSession: FakeRealtimeSession,
     tool: toolSpy
   };
