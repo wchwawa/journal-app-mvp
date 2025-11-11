@@ -4,10 +4,21 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
 import { syncReflectionsForDate } from '@/lib/reflections/sync';
 import { getLocalDayRange } from '@/lib/timezone';
+import { isTrustedOrigin } from '@/lib/security';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
+
+const ALLOWED_AUDIO_MIME_TYPES = new Set([
+  'audio/webm',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/wave',
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/ogg'
+]);
 
 // Helper function to generate daily summary
 async function generateDailySummary(
@@ -110,7 +121,9 @@ async function generateDailySummary(
   });
 
   const summary = summaryResponse.choices[0]?.message?.content || '';
-  console.log('Generated summary:', summary.substring(0, 100) + '...');
+  console.log(
+    `Generated summary for ${transcripts.length} entries (chars: ${summary.length})`
+  );
 
   // Step 4: Upsert daily summary
   const { data: summaryData, error: summaryError } = await supabase
@@ -143,6 +156,13 @@ async function generateDailySummary(
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isTrustedOrigin(request)) {
+      return NextResponse.json(
+        { error: 'Invalid request origin' },
+        { status: 403 }
+      );
+    }
+
     // Verify user authentication
     const { userId } = await auth();
     if (!userId) {
@@ -166,6 +186,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File too large' }, { status: 400 });
     }
 
+    const normalizedMime =
+      audioFile.type?.split(';')[0]?.toLowerCase() ?? undefined;
+    if (!normalizedMime || !ALLOWED_AUDIO_MIME_TYPES.has(normalizedMime)) {
+      return NextResponse.json(
+        { error: 'Unsupported audio format' },
+        { status: 400 }
+      );
+    }
+
     console.log(
       `Processing audio file: ${audioFile.name}, size: ${audioFile.size} bytes`
     );
@@ -185,8 +214,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(
-      'Transcription completed:',
-      transcription.substring(0, 100) + '...'
+      `Transcription completed for user ${userId} (chars: ${transcription.length})`
     );
 
     // Step 2: AI rephraser for rephrasing the transcription
@@ -219,7 +247,9 @@ export async function POST(request: NextRequest) {
     });
 
     const rephrasedText = summaryResponse.choices[0]?.message?.content || '';
-    console.log('Summary generated:', rephrasedText.substring(0, 100) + '...');
+    console.log(
+      `Rephrased transcript generated for user ${userId} (chars: ${rephrasedText.length})`
+    );
 
     // Step 3: Store audio file in Supabase Storage
     const supabase = createAdminClient();

@@ -5,9 +5,17 @@ import { ZodError } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { generateReflection } from '@/lib/reflections/generator';
 import { syncPayloadSchema } from '@/lib/reflections/schema';
+import { isTrustedOrigin } from '@/lib/security';
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isTrustedOrigin(request)) {
+      return NextResponse.json(
+        { error: 'Invalid request origin' },
+        { status: 403 }
+      );
+    }
+
     const { userId } = await auth();
 
     if (!userId) {

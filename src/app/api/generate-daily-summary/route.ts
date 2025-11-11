@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
 import { syncReflectionsForDate } from '@/lib/reflections/sync';
 import { getUtcRangeForDate } from '@/lib/timezone';
+import { isTrustedOrigin } from '@/lib/security';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -11,6 +12,13 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isTrustedOrigin(request)) {
+      return NextResponse.json(
+        { error: 'Invalid request origin' },
+        { status: 403 }
+      );
+    }
+
     // Verify user authentication
     const { userId } = await auth();
     if (!userId) {
@@ -123,7 +131,9 @@ export async function POST(request: NextRequest) {
     });
 
     const summary = summaryResponse.choices[0]?.message?.content || '';
-    console.log('Generated summary:', summary.substring(0, 100) + '...');
+    console.log(
+      `Generated summary for ${transcripts.length} entries on ${date} (chars: ${summary.length})`
+    );
 
     // Step 4: Upsert daily summary
     const { data: summaryData, error: summaryError } = await supabase

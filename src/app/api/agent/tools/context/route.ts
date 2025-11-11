@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fetchUserContext } from '@/lib/agent/context';
 import type { ContextRequest } from '@/lib/agent/context';
+import { isTrustedOrigin } from '@/lib/security';
 
 const payloadSchema = z.object({
   scope: z
@@ -26,6 +27,13 @@ const payloadSchema = z.object({
 // Handle context retrieval for agent tool requests
 export async function POST(request: NextRequest) {
   try {
+    if (!isTrustedOrigin(request)) {
+      return NextResponse.json(
+        { error: 'Invalid request origin' },
+        { status: 403 }
+      );
+    }
+
     const { userId } = await auth();
 
     if (!userId) {

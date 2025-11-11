@@ -617,7 +617,7 @@ WHERE (a.created_at AT TIME ZONE 'Australia/Sydney')::date = (SELECT d FROM tz);
 3) Studio 视图：不加日期过滤，先按 `created_at DESC` 查看最新，再精确搜索 `id`。
 
 ### Dev Tips
-- 本地旁路鉴权以便 DevTools 测试：`.env.local` 加 `NEXT_PUBLIC_DISABLE_ALL_AUTH=true`，重启 dev；中间件将放过页面与 API（`src/middleware.ts`）。
+- 本地旁路鉴权以便 DevTools 测试：`.env.local` 加 `DEV_DISABLE_AUTH=true`，仅在 `NODE_ENV=development` 下生效；中间件将放过页面与 API（`src/middleware.ts`）。
 - 录音链路数据流：Storage→`audio_files`→`transcripts`→（后台）`daily_summaries`→（后台）`period_reflections`。
 
 ### Lessons Learned

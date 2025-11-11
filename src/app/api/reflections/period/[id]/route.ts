@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { patchPeriodSchema } from '@/lib/reflections/schema';
 import { serializePeriodReflection } from '@/lib/reflections/serialize';
 import type { TablesUpdate } from '@/types/supabase';
+import { isTrustedOrigin } from '@/lib/security';
 
 const paramsSchema = z.object({
   id: z.string().uuid()
@@ -15,6 +16,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!isTrustedOrigin(request)) {
+      return NextResponse.json(
+        { error: 'Invalid request origin' },
+        { status: 403 }
+      );
+    }
+
     const { userId } = await auth();
 
     if (!userId) {

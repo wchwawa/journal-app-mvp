@@ -4,9 +4,13 @@ import { NextRequest } from 'next/server';
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)']);
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
-  // Dev bypass: set NEXT_PUBLIC_DISABLE_ALL_AUTH=true to disable protection
-  if (process.env.NEXT_PUBLIC_DISABLE_ALL_AUTH === 'true') {
-    return; // allow all requests in dev
+  const devAuthBypass =
+    process.env.NODE_ENV === 'development' &&
+    process.env.DEV_DISABLE_AUTH === 'true';
+
+  if (devAuthBypass) {
+    // Local development escape hatch only.
+    return;
   }
 
   if (isProtectedRoute(req)) await auth.protect();

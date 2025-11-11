@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { canUseSearch, recordSearchUsage } from '@/lib/agent/search-quota';
+import { isTrustedOrigin } from '@/lib/security';
 
 const SEARCH_MODEL = process.env.OPENAI_SEARCH_MODEL ?? 'gpt-4.1-mini';
 const systemPrompt = `You are a concise research aide. Always call the web_search tool first and return JSON with an array named results (title,url,snippet). Limit to top three items.`;
@@ -13,6 +14,13 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isTrustedOrigin(request)) {
+      return NextResponse.json(
+        { error: 'Invalid request origin' },
+        { status: 403 }
+      );
+    }
+
     const { userId } = await auth();
 
     if (!userId) {
