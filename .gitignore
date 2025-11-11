@@ -87,6 +87,5 @@ supabase/.branches/
 supabase/.env
 
 /sample_agent
-/docs
 
 src.zip

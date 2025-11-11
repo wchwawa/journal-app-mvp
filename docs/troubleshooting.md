@@ -10,6 +10,8 @@
 | Zod 提示 `.optional()` without `.nullable()` | 工具 schema 中 optional 字段未允许 null，旧版 SDK 不接受。 | 使用 `nullable().optional()`，并在发送 payload 前删除值为 null 的字段。 |
 | `/api/agent/tools/context` 返回 422 `Expected object, received null` | payload 中保留了 `range: null` 等字段。 | 在工具执行前删除所有为 null 的字段。 |
 | Console 报 `getInitialSessionConfig is not a function` | 旧版 SDK 无此方法。 | 移除该调试调用。 |
+| Echo 回答的 “今天/昨天/上周” 与真实日期不符 | 统一时区 + UTC 截断导致 `anchorDate` 落后 1 天；模型也不知道当前日期。 | `scope === 'today'` 时直接 `eq('date', anchorDate)`；在系统 prompt 中注入 “Today is ${anchorDate} (Australia/Sydney)” 等上下文，提示模型调用工具时显式设置 `anchorDate` / `range`。 |
+| 关闭 Voice 面板后 session 仍运行，几分钟后超时报错 | Dialog 关闭时没有主动断开 Realtime session，后台会话继续运行到 10 分钟上限。 | 在面板组件的 `onOpenChange` 回调里检测 `nextOpen === false` 时调用 `disconnect()`，确保退出即结束会话。 |
 
 ## Common Development Issues and Solutions
 

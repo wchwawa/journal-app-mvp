@@ -154,6 +154,30 @@ export async function fetchUserContext(
   const { anchor, start, end } = pickRange(payload.scope, payload.anchorDate);
   result.anchorDate = anchor;
 
+  if (payload.scope === 'today') {
+    const { data: summaries } = await client
+      .from('daily_summaries')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date', anchor)
+      .order('date', { ascending: true })
+      .limit(limit);
+
+    result.summaries = mapSummaries(summaries ?? []);
+
+    const { data: mood } = await client
+      .from('daily_question')
+      .select('day_quality, emotions, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', start ?? `${anchor}T00:00:00Z`)
+      .lte('created_at', end ?? `${anchor}T23:59:59.999Z`)
+      .order('created_at', { ascending: false })
+      .maybeSingle();
+
+    result.mood = mood ?? null;
+    return result;
+  }
+
   if (start && end) {
     const { data: summaries } = await client
       .from('daily_summaries')

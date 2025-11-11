@@ -55,6 +55,13 @@ export default function VoiceAgentPanel({
     }
   }, [open, toggleListening]);
 
+  const handleDialogChange = (nextOpen: boolean) => {
+    if (!nextOpen && state.status !== 'idle') {
+      disconnect();
+    }
+    onOpenChange(nextOpen);
+  };
+
   const handlePressStart = () => {
     if (state.status === 'ready') toggleListening(true);
   };
@@ -66,7 +73,7 @@ export default function VoiceAgentPanel({
   const timePercent = (state.timeRemaining / 600) * 100;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent className='sm:max-w-md'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
