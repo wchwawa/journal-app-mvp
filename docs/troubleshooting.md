@@ -1,5 +1,16 @@
 # Troubleshooting Guide
 
+## Voice Agent Realtime 集成
+
+| 症状 | 原因 | 修复 |
+| --- | --- | --- |
+| `/api/agent/token` 返回 `Unknown parameter: 'session.voice'` 或 `'model'` | 调用了 `client_secrets` 接口并在 body 中传入不被允许的字段。 | 使用 OpenAI SDK 的 `openai.beta.realtime.sessions.create({ model })`，或严格按官方示例提交 `{"session": {"type": "realtime", "model": "..."}}`。 |
+| Console 报 `Unknown parameter: 'session.type'` | `@openai/agents-realtime@0.3.x` 在 `session.update` payload 中包含服务器已弃用的字段。 | 将 `@openai/agents` / `@openai/agents-realtime` / `openai` 降级到 0.0.10/5.8.2（与 sample 一致），或等待官方修复新版本。 |
+| `Failed to parse SessionDescription. { Expect line: v= }` | 未显式指定 Realtime 连接 URL，返回 JSON 错误而非 SDP。 | `session.connect({ apiKey, url: 'https://api.openai.com/v1/realtime?model=...' })`。 |
+| Zod 提示 `.optional()` without `.nullable()` | 工具 schema 中 optional 字段未允许 null，旧版 SDK 不接受。 | 使用 `nullable().optional()`，并在发送 payload 前删除值为 null 的字段。 |
+| `/api/agent/tools/context` 返回 422 `Expected object, received null` | payload 中保留了 `range: null` 等字段。 | 在工具执行前删除所有为 null 的字段。 |
+| Console 报 `getInitialSessionConfig is not a function` | 旧版 SDK 无此方法。 | 移除该调试调用。 |
+
 ## Common Development Issues and Solutions
 
 ### Next.js Development Issues

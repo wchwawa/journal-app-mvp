@@ -295,3 +295,9 @@ activate agent -> the agent greeting to user -> user prompt(voice) back -> so on
 activate agent -> the agent greeting to user -> user ask remind them anything they need to be done these days -> agent call tools to retrive user personal journaling data as context, then agent respond
 
 **overall expectation** Siri-like AI assistant，整体的感觉就类似siri，点击功能按钮就activate voice agent, 即可开始语音对话。
+
+**current progress (2025-11-10)**
+- ✅ 浏览器端 push-to-talk 流程已打通：悬浮球入口、voice profile 切换、10 分钟会话守护。
+- ✅ Echo 可实时调用 `fetch_user_context`（Supabase）与 `web_search` 工具，并播放语音回复。
+- ✅ 临时密钥颁发与 WebRTC 连接均采用 OpenAI Agents SDK；日记结构化数据读取与网络搜索均已上线。
+- ⏳ 下一步：增强工具语义（日期范围推断）、填充示例数据、升级到最新 SDK 并在兼容模式下重新测试。
