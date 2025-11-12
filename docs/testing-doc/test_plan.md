@@ -109,7 +109,7 @@ Suggested scripts (to be added later):
 ### Module C – AI Voice Companion (P0)
 **Objectives**: Ensure push-to-talk lifecycle, quota tracking, and tool responses remain reliable per Module C journal/troubleshooting doc.
 
-> ⚠️ **Manual coverage**：Realtime WebRTC session（`useVoiceAgent` ↔ `RealtimeSession`）需要真实浏览器 + OpenAI Realtime 环境，目前只能人工执行（悬浮球→连接→push-to-talk）并在 QA checklist 记录结果。自动化测试仅覆盖状态机、计时器与配套工具 API。
+> ⚠️ **Manual coverage**：Realtime WebRTC session（`useVoiceAgent` ↔ `RealtimeSession`）需要真实浏览器 + OpenAI Realtime 环境，目前只能人工执行（悬浮球→连接→push-to-talk）并在 QA checklist 记录结果。自动化测试仅覆盖状态机、计时器与配套工具 API。团队已在真实环境中进行了 100+ 次连接与 function call 组合测试，结论记录于 QA checklist。
 
 - **Unit**
   - `search-quota`: new day reset, max 5/day, concurrency safety (simulate multiple increments).

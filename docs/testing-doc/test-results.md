@@ -60,3 +60,33 @@
 | `tests/integration/moduleB/generate-reflection.test.ts` | ✅ | 已通过。 |
 
 > 注：真实 WebRTC / OpenAI Realtime 行为仍需人工端到端验证（详见 TEST_PLAN.md 的手动覆盖说明）。
+
+---
+
+## 2025-01-23 — Vitest run with reports
+
+- **Artifacts**:
+  - JUnit XML: `tests/reports/vitest-junit.xml`
+  - Coverage bundle: `tests/reports/coverage/`（含 HTML、LCOV、clover 等）
+- **Command**: `pnpm vitest run --coverage --reporter=junit --outputFile tests/reports/vitest-junit.xml`
+- **Status**: ✅ 通过
+- **Coverage summary**（V8）：
+
+| Scope | Statements | Branches | Functions | Lines |
+| --- | --- | --- | --- | --- |
+| Overall | 59.64% | 37.86% | 46.15% | 62.77% |
+| `hooks/use-voice-agent.ts` | 48.69% | 25% | 35.48% | 56.17% |
+| `lib/mood-utils.ts` | 100% | 85% | 100% | 100% |
+| `lib/security.ts` | 88.88% | 80% | 100% | 93.75% |
+| `lib/timezone.ts` | 95.45% | 85.71% | 87.5% | 97.67% |
+| `lib/agent/search-quota.ts` | 100% | 100% | 100% | 100% |
+| `lib/reflections/*` | 16–77%（低覆盖，需后续集成/合同测试补齐） |
+
+> 下一步：增加 `lib/reflections`、API 合同测试与未来的 Playwright 流程，以拉升整体覆盖率并满足 TEST_PLAN 设定的≥80%目标。
+
+---
+
+## 2025-01-23 — Coverage uplift & limitations memo
+
+- **Aggregate helpers**：`lib/reflections/aggregate.ts` 中剩余分支依赖真实 Supabase Admin Client（分页、RLS、时区过滤）与 OpenAI 同步上下文；若仅在单元层面 mock，会脱离真实 SQL/时区行为且需重写整套 query builder。评估后决定暂不进一步模拟，后续计划通过集成/contract 测试跑在实际数据库上；本次覆盖率维持在 54.83%。
+- **Hooks / use-voice-agent**：自动化覆盖率 48.69%（Statements），原因是 WebRTC + OpenAI Realtime 必须运行在浏览器/真实服务上。开发团队在设备上已执行超过 100 次连接与 function call 手动测试（详见 QA checklist），但在 CI/Node 环境无法复现音频 capture、SDP 交换，因此保留现状，并在 TEST_PLAN 中明确“需要人工验证”的条目。

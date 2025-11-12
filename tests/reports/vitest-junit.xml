@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="21" failures="0" errors="0" time="0.152806915">
+    <testsuite name="tests/unit/moduleA/mood-utils.test.ts" timestamp="2025-11-11T05:16:39.897Z" hostname="Mac-3.modem" tests="4" failures="0" errors="0" skipped="0" time="0.00759225">
+        <testcase classname="tests/unit/moduleA/mood-utils.test.ts" name="mood utils &gt; normalizes canonical day quality labels" time="0.003385292">
+        </testcase>
+        <testcase classname="tests/unit/moduleA/mood-utils.test.ts" name="mood utils &gt; summarizes emotion arrays with friendly copy" time="0.000583084">
+        </testcase>
+        <testcase classname="tests/unit/moduleA/mood-utils.test.ts" name="mood utils &gt; reports placeholder data when no entry exists" time="0.000940958">
+        </testcase>
+        <testcase classname="tests/unit/moduleA/mood-utils.test.ts" name="mood utils &gt; exposes underlying mood + emotion data for consumers" time="0.000907292">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/integration/moduleB/generate-reflection.test.ts" timestamp="2025-11-11T05:16:39.899Z" hostname="Mac-3.modem" tests="1" failures="0" errors="0" skipped="0" time="0.012844666">
+        <testcase classname="tests/integration/moduleB/generate-reflection.test.ts" name="generateReflection – daily mode &gt; keeps edited content while updating stats + metadata" time="0.011664542">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/unit/moduleC/search-quota.test.ts" timestamp="2025-11-11T05:16:39.900Z" hostname="Mac-3.modem" tests="2" failures="0" errors="0" skipped="0" time="0.057167416">
+        <testcase classname="tests/unit/moduleC/search-quota.test.ts" name="search quota helper &gt; allows up to five searches per day" time="0.055206375">
+        </testcase>
+        <testcase classname="tests/unit/moduleC/search-quota.test.ts" name="search quota helper &gt; resets remaining quota when local date changes" time="0.000312333">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/unit/moduleC/use-voice-agent.test.ts" timestamp="2025-11-11T05:16:39.901Z" hostname="Mac-3.modem" tests="1" failures="0" errors="0" skipped="0" time="0.022227667">
+        <testcase classname="tests/unit/moduleC/use-voice-agent.test.ts" name="useVoiceAgent &gt; transitions to ready state and toggles listening when session connects" time="0.018743417">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/unit/moduleB/reflection-schema.test.ts" timestamp="2025-11-11T05:16:39.902Z" hostname="Mac-3.modem" tests="3" failures="0" errors="0" skipped="0" time="0.011455416">
+        <testcase classname="tests/unit/moduleB/reflection-schema.test.ts" name="reflection schemas &gt; validates AI JSON payloads and enforces limits" time="0.006249083">
+        </testcase>
+        <testcase classname="tests/unit/moduleB/reflection-schema.test.ts" name="reflection schemas &gt; enforces patch schema to have at least one field" time="0.001697084">
+        </testcase>
+        <testcase classname="tests/unit/moduleB/reflection-schema.test.ts" name="reflection schemas &gt; validates sync payloads and anchor dates" time="0.001482375">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/unit/moduleB/reflections-aggregate.test.ts" timestamp="2025-11-11T05:16:39.903Z" hostname="Mac-3.modem" tests="4" failures="0" errors="0" skipped="0" time="0.007188">
+        <testcase classname="tests/unit/moduleB/reflections-aggregate.test.ts" name="reflections aggregate helpers &gt; resolves anchor date defaults to today" time="0.001783334">
+        </testcase>
+        <testcase classname="tests/unit/moduleB/reflections-aggregate.test.ts" name="reflections aggregate helpers &gt; computes daily/weekly/monthly period bounds" time="0.002316125">
+        </testcase>
+        <testcase classname="tests/unit/moduleB/reflections-aggregate.test.ts" name="reflections aggregate helpers &gt; counts emotions across summaries and moods" time="0.000653959">
+        </testcase>
+        <testcase classname="tests/unit/moduleB/reflections-aggregate.test.ts" name="reflections aggregate helpers &gt; sums entries across aggregates" time="0.000371625">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/unit/shared/security-origin.test.ts" timestamp="2025-11-11T05:16:39.905Z" hostname="Mac-3.modem" tests="4" failures="0" errors="0" skipped="0" time="0.005192708">
+        <testcase classname="tests/unit/shared/security-origin.test.ts" name="isTrustedOrigin &gt; accepts matching origin host" time="0.002476417">
+        </testcase>
+        <testcase classname="tests/unit/shared/security-origin.test.ts" name="isTrustedOrigin &gt; rejects mismatched origin" time="0.000647125">
+        </testcase>
+        <testcase classname="tests/unit/shared/security-origin.test.ts" name="isTrustedOrigin &gt; falls back to referer when origin missing" time="0.000363666">
+        </testcase>
+        <testcase classname="tests/unit/shared/security-origin.test.ts" name="isTrustedOrigin &gt; treats missing origin/referer as trusted (SSR/server calls)" time="0.000293125">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/unit/shared/timezone.test.ts" timestamp="2025-11-11T05:16:39.907Z" hostname="Mac-3.modem" tests="2" failures="0" errors="0" skipped="0" time="0.029138792">
+        <testcase classname="tests/unit/shared/timezone.test.ts" name="timezone helpers &gt; returns stable local YMD + UTC range across DST rollback" time="0.026173459">
+        </testcase>
+        <testcase classname="tests/unit/shared/timezone.test.ts" name="timezone helpers &gt; computes UTC bounds for an arbitrary calendar date" time="0.000516958">
+        </testcase>
+    </testsuite>
+</testsuites>
