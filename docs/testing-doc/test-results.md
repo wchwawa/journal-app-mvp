@@ -1,4 +1,4 @@
-## 2025-01-23 — Vitest smoke run
+## 11 Nov 2025 — Vitest smoke run
 
 - **Command**: `pnpm vitest run`
 - **Status**: ❌ Failed (3 suites)
@@ -19,7 +19,7 @@
 
 ---
 
-## 2025-01-23 — Vitest run (with alias config)
+## 11 Nov 2025 — Vitest run (with alias config)
 
 - **Config change**: 添加 `vitest.config.ts`，并安装 `vite-tsconfig-paths` 以同步 `@/`、`~/` 别名；测试环境设置为 `happy-dom`。
 - **Command**: `pnpm vitest run`
@@ -40,7 +40,7 @@
 
 ---
 
-## 2025-01-23 — Vitest run (expanded suites)
+## 12 Nov 2025 — Vitest run (expanded suites)
 
 - **New suites**:
   - `tests/unit/shared/timezone.test.ts`（覆盖 `getLocalDayRange`、`getUtcRangeForDate` 的 DST 行为）
@@ -63,7 +63,7 @@
 
 ---
 
-## 2025-01-23 — Vitest run with reports
+## 12 Nov 2025 — Vitest run with reports
 
 - **Artifacts**:
   - JUnit XML: `tests/reports/vitest-junit.xml`
@@ -86,7 +86,7 @@
 
 ---
 
-## 2025-01-23 — Coverage uplift & limitations memo
+## 13 Nov 2025 — Coverage uplift & limitations memo
 
 - **Aggregate helpers**：`lib/reflections/aggregate.ts` 中剩余分支依赖真实 Supabase Admin Client（分页、RLS、时区过滤）与 OpenAI 同步上下文；若仅在单元层面 mock，会脱离真实 SQL/时区行为且需重写整套 query builder。评估后决定暂不进一步模拟，后续计划通过集成/contract 测试跑在实际数据库上；本次覆盖率维持在 54.83%。
 - **Hooks / use-voice-agent**：自动化覆盖率 48.69%（Statements），原因是 WebRTC + OpenAI Realtime 必须运行在浏览器/真实服务上。开发团队在设备上已执行超过 100 次连接与 function call 手动测试（详见 QA checklist），但在 CI/Node 环境无法复现音频 capture、SDP 交换，因此保留现状，并在 TEST_PLAN 中明确“需要人工验证”的条目。

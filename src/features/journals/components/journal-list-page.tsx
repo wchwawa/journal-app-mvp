@@ -1,9 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { createClient } from '@/lib/supabase/client';
-import { getJournalsWithSummaries } from '@/lib/supabase/queries';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CalendarIcon, HashIcon, SearchIcon } from 'lucide-react';
@@ -34,6 +32,11 @@ type DailySummaryWithJournals = Tables<'daily_summaries'> & {
   dailyMood: Tables<'daily_question'> | null;
 };
 
+type JournalsResponse = {
+  data: DailySummaryWithJournals[];
+  totalCount: number;
+};
+
 export default function JournalListPage() {
   const { user } = useUser();
   const [journals, setJournals] = useState<DailySummaryWithJournals[]>([]);
@@ -49,36 +52,50 @@ export default function JournalListPage() {
 
   const limit = 10;
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchJournals();
-    }
-  }, [user?.id, page, filters]);
-
-  const fetchJournals = async () => {
+  const fetchJournals = useCallback(async () => {
     if (!user?.id) return;
 
     setLoading(true);
     try {
-      const supabase = createClient();
-      const result = await getJournalsWithSummaries(supabase, user.id, {
-        startDate: filters.startDate || undefined,
-        endDate: filters.endDate || undefined,
-        moods:
-          filters.mood && filters.mood !== 'all' ? [filters.mood] : undefined,
-        keyword: filters.keyword || undefined,
-        page,
-        limit
+      const moodFilter =
+        filters.mood && filters.mood !== 'all' ? filters.mood : undefined;
+
+      const response = await fetch('/api/journals/list', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          startDate: filters.startDate || null,
+          endDate: filters.endDate || null,
+          moods: moodFilter ? [moodFilter] : undefined,
+          keyword: filters.keyword || null,
+          page,
+          limit
+        })
       });
 
-      setJournals(result.data);
-      setTotalCount(result.totalCount);
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const result = (await response.json()) as JournalsResponse;
+      setJournals(result.data ?? []);
+      setTotalCount(result.totalCount ?? 0);
     } catch (error) {
       console.error('Error fetching journals:', error);
+      setJournals([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, filters, page, limit]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchJournals();
+    }
+  }, [user?.id, fetchJournals]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -87,7 +104,6 @@ export default function JournalListPage() {
 
   const handleSearch = () => {
     setPage(1);
-    fetchJournals();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

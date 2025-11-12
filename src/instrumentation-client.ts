@@ -3,12 +3,15 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 import * as Sentry from '@sentry/nextjs';
 
-const scrubEvent = (event: Sentry.Event) => {
+const scrubEvent = (
+  event: Sentry.ErrorEvent,
+  _hint: Sentry.EventHint
+): Sentry.ErrorEvent | null => {
   if (event.request?.headers) {
     delete event.request.headers.authorization;
     delete event.request.headers.Authorization;
   }
-  return event;
+  return event ?? null;
 };
 
 if (!process.env.NEXT_PUBLIC_SENTRY_DISABLED) {

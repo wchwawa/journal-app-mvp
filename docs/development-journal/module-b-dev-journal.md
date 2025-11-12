@@ -196,8 +196,17 @@ Allows light editing of a week/month card; sets edited=true.
 
 ### Updates (2025‑11‑06)
 
-1) Non‑blocking generation
+1) Non-blocking generation
 - 音频保存成功后，录音接口不再同步等待“日总结 + Echos 同步”。二者在后台顺序执行，前端更快得到成功反馈。
+
+### 2025-11-11 — Journals 列表改为服务端拉取（兼容 RLS）
+
+- **问题**：Dashboard Journals 之前直接在浏览器端使用匿名 Supabase 客户端 (`createClient`) 拉取 `daily_summaries`/`transcripts`。启用 RLS 后，匿名请求没有 `auth.uid()`，Supabase 会返回空数组，导致页面永远显示 “No journal entries found”。短期内只能通过禁用 RLS 来恢复数据，存在明显安全缺口。
+- **改动**：
+  - 新增 `/api/journals/list`（`src/app/api/journals/list/route.ts`），统一在服务器端用 `createAdminClient` + `getJournalsWithSummaries` 查询，并且沿用同源校验、防 CSRF 逻辑。
+  - `JournalListPage`（`src/features/journals/components/journal-list-page.tsx`）改为走上述 API，保留原有的筛选、分页、loading UI。
+  - API 响应格式 `{ data, totalCount }` 与旧逻辑一致，前端状态管理无感知。
+- **结果**：可以重新启用 `daily_summaries`、`period_reflections` 等表的 RLS，同时 Journals 端点正常显示数据；也为后续引入速率限制/缓存提供了统一入口。
 - 参考：src/app/api/transcribe/route.ts
 ```ts
 // kick off in background (non-blocking)

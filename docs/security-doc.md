@@ -40,6 +40,16 @@ create policy "Audio owners can CRUD" on public.audio_files
 - `public.daily_summaries`
 - `public.period_reflections`
 
+根据 2025-11-11 的 Supabase MCP 检查，核心表 RLS 现状如下：
+
+| 表 | RLS 状态 | 备注与调用方式 |
+| --- | --- | --- |
+| `audio_files` | ✅ Enabled | 仅作者可读写。所有查询/播放都通过服务端 API (`/api/audio/[id]`) 使用 Service Role。 |
+| `transcripts` | ✅ Enabled | 仅作者可读写；依赖音频外键。转写生成在 `/api/transcribe` 内完成，客户端不直接访问。 |
+| `daily_summaries` | ✅ Enabled | 日总结/日卡数据，浏览器端通过 `/api/journals/list` 等服务端入口获取。 |
+| `period_reflections` | ✅ Enabled | 周/月卡数据，所有 CRUD 由 `/api/reflections/*` 处理。 |
+| `daily_question` | ⛔ Disabled | 目前仍由客户端直接写入（低风险表），未来若迁移到服务端 API，再启用 RLS。 |
+
 ### 2.3 代码协同
 - 前端只使用匿名 Supabase 客户端（`src/lib/supabase/client.ts`），即便被篡改也只能访问自己的行。
 - 服务端 API 若需批量操作，使用 `createAdminClient`（`src/lib/supabase/admin.ts`）并在业务层再次校验 `userId`，从而实现“最小权限 + 胶水层二次校验”。
@@ -47,6 +57,11 @@ create policy "Audio owners can CRUD" on public.audio_files
 ### 2.4 验证
 - 运行 `supabase mcp list_tables` 可看到所有核心表 `rls_enabled: true`。
 - 在匿名上下文执行 `select * from daily_summaries` 只会返回当前用户数据；尝试插入其他 user_id 会被拒绝。
+
+### 2.5 安全集缺记录（2025-11-11）
+- **情境**：Dashboard Journals 曾在浏览器端直接用匿名 Supabase 客户端查询 `daily_summaries`/`transcripts`。启用 RLS 后，这类无身份请求会被策略过滤成空结果，团队一度通过“临时关闭 RLS”来恢复显示。
+- **改进**：新增 `/api/journals/list`（`src/app/api/journals/list/route.ts`）让所有列表查询在服务器端执行，并使用 service role + Clerk 身份校验。前端 `JournalListPage` 只调用此 API，从而保持 RLS 长期开启。
+- **意义**：记录该缺口，提醒后续所有读取 RLS 数据的模块都必须经过受信的 API / Server Action，而不是直接暴露匿名 Supabase 查询。
 
 ---
 
