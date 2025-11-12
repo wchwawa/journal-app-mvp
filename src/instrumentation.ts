@@ -1,6 +1,9 @@
 import * as Sentry from '@sentry/nextjs';
 
-const scrubEvent = (event: Sentry.Event) => {
+const scrubEvent = (
+  event: Sentry.ErrorEvent,
+  _hint: Sentry.EventHint
+): Sentry.ErrorEvent | null => {
   if (event.request?.headers) {
     delete event.request.headers.authorization;
     delete event.request.headers.Authorization;
@@ -9,7 +12,7 @@ const scrubEvent = (event: Sentry.Event) => {
     event.request.cookies = undefined;
     event.request.data = undefined;
   }
-  return event;
+  return event ?? null;
 };
 
 const sentryOptions: Sentry.NodeOptions | Sentry.EdgeOptions = {
