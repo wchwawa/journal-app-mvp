@@ -774,6 +774,41 @@ diff --git a/src/lib/reflections/generator.ts b/src/lib/reflections/generator.ts
 
 > 提示：若未来更换模型，确保 `MODEL_NAME` 与 Supabase JSON 类型同步更新。
 
+### Build Failed: Sentry client `beforeSend` type mismatch
+
+**Error**
+```
+Type error: Type '(event: Sentry.Event) => Sentry.Event' is not assignable to type '(event: ErrorEvent, hint: EventHint) => ErrorEvent | PromiseLike<ErrorEvent | null> | null'.
+```
+
+**Cause**
+- `src/instrumentation-client.ts` 复用了服务端 `scrubEvent`（`Sentry.Event` 签名），但浏览器 SDK 期望 `beforeSend` 的参数为 `ErrorEvent`。
+- `next build`（husky pre-push）会重新运行 TS 检查，即使编辑器未报错仍会阻塞 push。
+
+**Fix**
+```ts
+const scrubEvent = (
+  event: Sentry.ErrorEvent,
+  _hint: Sentry.EventHint
+): Sentry.ErrorEvent | null => {
+  if (event.request?.headers) {
+    delete event.request.headers.authorization;
+    delete event.request.headers.Authorization;
+  }
+  return event ?? null;
+};
+
+Sentry.init({
+  // ...
+  beforeSend: scrubEvent,
+  // ...
+});
+```
+
+**Verification**
+- 本地执行 `pnpm run build`，确认通过；之后 husky pre-push 也能成功。
+- 服务端 `src/instrumentation.ts` 保持 `Sentry.Event` 签名即可，无需同步修改。
+
 ## 修正思路与示例代码（Diff）
 
 本节记录我们对“录音→转写→日总结→Echos 同步”链路的修正方案，并提供可直接参考的代码 Diff（基于现有代码库）。
