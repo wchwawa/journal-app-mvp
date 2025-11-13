@@ -86,10 +86,7 @@ const DailyMoodWidgetComponent = () => {
       </div>
       <div className='relative flex flex-1 flex-col'>
         <span className='text-foreground text-base font-semibold transition-colors group-hover:text-orange-600 dark:group-hover:text-orange-400'>
-          {moodHeadline(moodEntry?.day_quality)}
-        </span>
-        <span className='text-muted-foreground/70 hidden text-[10px] font-medium sm:inline'>
-          Daily Check-in
+          {'Mood'}
         </span>
       </div>
       {isLoading ? (

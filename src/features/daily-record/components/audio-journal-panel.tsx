@@ -402,8 +402,8 @@ export default function AudioJournalPanel({
   }, [showIdleFact, currentFact, typedChars, isDeleting]);
 
   return (
-    <div className={cn('mx-auto w-full max-w-md', className)}>
-      <div className='border-border/30 bg-card/90 space-y-5 rounded-3xl border p-6 shadow-lg'>
+    <div className={cn('mx-auto flex h-full w-full max-w-md', className)}>
+      <div className='border-border/30 bg-card/90 flex min-h-[400px] w-full flex-col gap-5 rounded-3xl border p-6 shadow-lg'>
         <div className='text-center'>
           <h2 className='text-foreground text-xl font-semibold tracking-tight'>
             Record Your Journal
@@ -421,12 +421,7 @@ export default function AudioJournalPanel({
           ) : null}
         </div>
 
-        <div
-          className={cn(
-            'relative w-full overflow-hidden rounded-xl transition-[min-height] duration-300',
-            showIdleFact ? 'min-h-[96px]' : 'min-h-[64px]'
-          )}
-        >
+        <div className='relative min-h-[110px] w-full overflow-hidden rounded-xl transition-[min-height] duration-300'>
           {liveStream && recordingState !== 'stopped' ? (
             <LiveWaveform
               stream={liveStream}
@@ -478,48 +473,47 @@ export default function AudioJournalPanel({
 
         <div className='flex w-full justify-center'>
           {!hasRecording ? (
-            <div className='flex w-full max-w-xs flex-col items-center gap-4'>
-              <Button
-                onClick={
-                  isRecording
-                    ? stopRecording
-                    : isPaused
-                      ? resumeRecording
-                      : startRecording
-                }
-                disabled={isProcessing}
-                size='lg'
-                className={cn(
-                  'h-[4.25rem] w-[4.25rem] rounded-full transition-all duration-300',
-                  'shadow-lg hover:shadow-xl',
-                  isRecording
-                    ? 'bg-red-500 hover:bg-red-600'
-                    : isPaused
-                      ? 'bg-green-500 hover:bg-green-600'
-                      : 'bg-primary hover:bg-primary/90'
+            <div className='flex w-full max-w-sm flex-col items-center gap-4'>
+              <div className='flex items-center justify-center gap-3'>
+                {isRecording && (
+                  <Button
+                    onClick={pauseRecording}
+                    variant='outline'
+                    size='icon'
+                    className='h-12 w-12 rounded-full'
+                  >
+                    <Pause className='h-4 w-4' />
+                  </Button>
                 )}
-              >
-                {isRecording ? (
-                  <Square className='h-8 w-8' />
-                ) : isPaused ? (
-                  <Play className='h-8 w-8' />
-                ) : (
-                  <Mic className='h-8 w-8' />
-                )}
-              </Button>
-
-              {(isRecording || isPaused) && (
-                <div className='flex w-full items-center justify-center gap-3'>
-                  {isRecording && (
-                    <Button
-                      onClick={pauseRecording}
-                      variant='outline'
-                      size='icon'
-                      className='h-12 w-12 rounded-full'
-                    >
-                      <Pause className='h-4 w-4' />
-                    </Button>
+                <Button
+                  onClick={
+                    isRecording
+                      ? stopRecording
+                      : isPaused
+                        ? resumeRecording
+                        : startRecording
+                  }
+                  disabled={isProcessing}
+                  size='lg'
+                  className={cn(
+                    'h-[4.25rem] w-[4.25rem] rounded-full transition-all duration-300',
+                    'shadow-lg hover:shadow-xl',
+                    isRecording
+                      ? 'bg-red-500 hover:bg-red-600'
+                      : isPaused
+                        ? 'bg-green-500 hover:bg-green-600'
+                        : 'bg-primary hover:bg-primary/90'
                   )}
+                >
+                  {isRecording ? (
+                    <Square className='h-8 w-8' />
+                  ) : isPaused ? (
+                    <Play className='h-8 w-8' />
+                  ) : (
+                    <Mic className='h-8 w-8' />
+                  )}
+                </Button>
+                {(isRecording || isPaused) && (
                   <Button
                     onClick={restartRecording}
                     variant='outline'
@@ -528,21 +522,21 @@ export default function AudioJournalPanel({
                   >
                     <RotateCcw className='h-4 w-4' />
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ) : (
-            <div className='flex w-full flex-wrap items-center justify-center gap-3'>
+            <div className='flex w-full max-w-sm items-center justify-center gap-3'>
               <Button
                 onClick={toggleAudioPlayback}
                 variant='outline'
                 size='icon'
-                className='h-14 w-14 rounded-full'
+                className='h-12 w-12 rounded-full'
               >
                 {isPlaying ? (
-                  <Pause className='h-6 w-6' />
+                  <Pause className='h-5 w-5' />
                 ) : (
-                  <Play className='h-6 w-6' />
+                  <Play className='h-5 w-5' />
                 )}
               </Button>
 
@@ -550,20 +544,24 @@ export default function AudioJournalPanel({
                 onClick={discardRecording}
                 variant='outline'
                 size='icon'
-                className='h-14 w-14 rounded-full border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50'
+                className='h-12 w-12 rounded-full border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50'
               >
-                <Trash2 className='h-6 w-6' />
+                <Trash2 className='h-5 w-5' />
               </Button>
 
               <Button
                 onClick={processAudio}
                 disabled={!canProcess}
-                className='min-w-[160px] rounded-full px-6 py-3 shadow-lg hover:shadow-xl'
+                className='relative h-12 flex-1 overflow-hidden rounded-full px-5 text-sm font-semibold text-white disabled:opacity-70'
               >
-                {isProcessing ? (
-                  <Loader2 className='mr-2 h-5 w-5 animate-spin' />
-                ) : null}
-                {isProcessing ? 'Processing...' : 'Process Recording'}
+                <span className='animate-spin-gradient absolute inset-[-20%] bg-[conic-gradient(var(--tw-gradient-stops))] from-purple-500 via-pink-500 to-cyan-400 opacity-70 blur-xl' />
+                <span className='bg-primary/95 absolute inset-[2px] rounded-full' />
+                <span className='relative z-10 flex items-center justify-center gap-2'>
+                  {isProcessing ? (
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                  ) : null}
+                  Process
+                </span>
               </Button>
             </div>
           )}
@@ -587,28 +585,11 @@ export default function AudioJournalPanel({
         )}
 
         {/* Results Display */}
-        {isComplete && (transcription || summary) && (
-          <div className='border-border/50 space-y-4 border-t pt-4 text-sm'>
-            {transcription && (
-              <div className='space-y-2'>
-                <h4 className='text-foreground text-xs font-semibold tracking-[0.2em] uppercase'>
-                  Transcription
-                </h4>
-                <div className='bg-muted/40 text-muted-foreground rounded-lg p-3 text-xs leading-relaxed'>
-                  {transcription}
-                </div>
-              </div>
-            )}
-            {summary && (
-              <div className='space-y-2'>
-                <h4 className='text-foreground text-xs font-semibold tracking-[0.2em] uppercase'>
-                  Summary
-                </h4>
-                <div className='bg-muted/40 text-muted-foreground rounded-lg p-3 text-xs leading-relaxed'>
-                  {summary}
-                </div>
-              </div>
-            )}
+        {isComplete && (
+          <div className='border-border/40 border-t pt-4'>
+            <div className='rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-medium text-green-800 dark:bg-green-900/20 dark:text-green-200'>
+              Smart journal organization complete.
+            </div>
             <div className='pt-4 text-center'>
               <div className='flex justify-center gap-2'>
                 <Button

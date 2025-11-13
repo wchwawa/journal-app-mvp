@@ -1,6 +1,4 @@
 import React from 'react';
-import { SidebarTrigger } from '../ui/sidebar';
-import { Separator } from '../ui/separator';
 import { Breadcrumbs } from '../breadcrumbs';
 import SearchInput from '../search-input';
 import { UserNav } from './user-nav';
@@ -10,14 +8,18 @@ import CtaGithub from './cta-github';
 
 export default function Header() {
   return (
-    <header className='flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
-      <div className='flex items-center gap-2 px-4'>
-        <SidebarTrigger className='-ml-1' />
-        <Separator orientation='vertical' className='mr-2 h-4' />
+    <header
+      className='border-border/40 bg-background/90 sticky top-0 z-40 flex min-h-16 items-center gap-3 border-b px-4 backdrop-blur'
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        minHeight: 'calc(64px + env(safe-area-inset-top, 0px))'
+      }}
+    >
+      <div className='min-w-0 flex-1'>
         <Breadcrumbs />
       </div>
 
-      <div className='flex items-center gap-2 px-4'>
+      <div className='flex items-center gap-2'>
         <CtaGithub />
         <div className='hidden md:flex'>
           <SearchInput />

@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, RefreshCw, Wand2 } from 'lucide-react';
+import { Loader2, Wand2 } from 'lucide-react';
 import type { ReflectionCard, ReflectionMode } from '@/lib/reflections/types';
 import { getLocalDayRange } from '@/lib/timezone';
 
@@ -27,11 +27,13 @@ interface EditState {
   flashback: string;
 }
 
-const MODES: Array<{ value: ReflectionMode; label: string }> = [
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' }
-];
+const MODE_SEQUENCE: ReflectionMode[] = ['daily', 'weekly', 'monthly'];
+
+const MODE_LABELS: Record<ReflectionMode, string> = {
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly'
+};
 
 const EMPTY_STATE_COPY: Record<ReflectionMode, string> = {
   daily: 'No daily echos yet. Generate one to get started.',
@@ -256,6 +258,53 @@ function EditEchoDialog({
   );
 }
 
+interface ModeSwitcherProps {
+  mode: ReflectionMode;
+  onChange: (nextMode: ReflectionMode) => void;
+}
+
+function ModeSwitcher({ mode, onChange }: ModeSwitcherProps) {
+  const activeIndex = MODE_SEQUENCE.indexOf(mode);
+  const segmentWidth = 100 / MODE_SEQUENCE.length;
+  const highlightExtra = 8;
+  const highlightWidth = `calc(${segmentWidth}% + ${highlightExtra}px)`;
+  const highlightLeft = `calc(${activeIndex * segmentWidth}% - ${
+    highlightExtra / 2
+  }px)`;
+
+  return (
+    <div
+      className='border-border/60 bg-muted/60 text-muted-foreground relative flex min-w-[200px] flex-none items-center overflow-hidden rounded-full border px-1 py-1 text-[11px] font-semibold tracking-wide uppercase'
+      role='group'
+      aria-label='Select echo range'
+    >
+      <span
+        className='bg-background pointer-events-none absolute inset-y-0 rounded-full shadow-sm transition-all duration-300 ease-out'
+        style={{ width: highlightWidth, left: highlightLeft }}
+      />
+      <div className='relative z-10 grid w-full grid-cols-3 text-center'>
+        {MODE_SEQUENCE.map((value) => (
+          <button
+            key={value}
+            type='button'
+            className={`rounded-full py-1.5 transition-colors ${
+              value === mode ? 'text-foreground' : 'text-muted-foreground/70'
+            }`}
+            onClick={() => {
+              if (value !== mode) {
+                onChange(value);
+              }
+            }}
+            aria-pressed={value === mode}
+          >
+            {MODE_LABELS[value]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function EchosBoard() {
   const [mode, setMode] = useState<ReflectionMode>('daily');
   const [cards, setCards] = useState<ReflectionCard[]>([]);
@@ -361,50 +410,27 @@ export function EchosBoard() {
   };
 
   return (
-    <div className='flex flex-1 flex-col space-y-6'>
-      <div className='flex flex-wrap items-center justify-between gap-4'>
-        <div className='flex flex-wrap gap-2'>
-          {MODES.map((item) => (
-            <Button
-              key={item.value}
-              variant={mode === item.value ? 'default' : 'outline'}
-              onClick={() => setMode(item.value)}
-            >
-              {item.label}
-            </Button>
-          ))}
-        </div>
-        <div className='flex items-center gap-2'>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => handleRefetch()}
-            disabled={loading || isGenerating}
-          >
-            <RefreshCw className='mr-2 h-4 w-4' />
-            Refresh list
-          </Button>
-          <Button
-            size='sm'
-            onClick={() =>
-              handleGenerate(
-                mode === 'daily'
-                  ? activeCard?.period.date
-                  : activeCard?.period.start
-              )
-            }
-            disabled={isGenerating}
-          >
-            {isGenerating ? (
-              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-            ) : (
-              <Wand2 className='mr-2 h-4 w-4' />
-            )}
-            {mode === 'daily'
-              ? 'Generate today’s echo'
-              : 'Refresh current period'}
-          </Button>
-        </div>
+    <div className='flex flex-1 flex-col space-y-4'>
+      <div className='flex items-center gap-2 overflow-x-auto pb-1'>
+        <ModeSwitcher mode={mode} onChange={(next) => setMode(next)} />
+        <Button
+          size='sm'
+          onClick={() =>
+            handleGenerate(
+              mode === 'daily'
+                ? activeCard?.period.date
+                : activeCard?.period.start
+            )
+          }
+          disabled={isGenerating}
+        >
+          {isGenerating ? (
+            <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+          ) : (
+            <Wand2 className='mr-2 h-4 w-4' />
+          )}
+          Regenerate
+        </Button>
       </div>
 
       {loading ? (

@@ -207,6 +207,23 @@ TS7016: Could not find a declaration file for module 'wavesurfer.js/dist/plugins
 
 ### UI & Animation Issues
 
+#### 3. WebView 顶部 Profile（头像）栏“消失”/被遮挡
+**Symptoms**: 在 iOS WebView 或带刘海设备内嵌浏览器中，进入 `/dashboard/overview` 后，顶部 Header 的头像/Profile 下拉看起来“不见了”。
+
+**Root Cause**: 将 Header 设为 `sticky top-0` 后，又移除了页面容器默认的顶部内边距；若未为粘顶 Header 预留 `safe-area` 顶部安全区，WebView 的状态栏/刘海会把 Header 上缘压住，从视觉上像是“向上移出了视口”。未开启 `viewport-fit=cover` 时，`env(safe-area-inset-top)` 始终为 0 也会导致补偿失败。
+
+**Fix**:
+- 启用安全区支持：在 `src/app/layout.tsx:1` 的 `<head>` 中加入 `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">`
+- 为 Header 预留安全区高度（两选一）：
+  - A. 在 `src/components/layout/header.tsx:11` 的 `<header>` 上添加：
+    `style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 6px)', minHeight: 'calc(64px + env(safe-area-inset-top, 0px) + 6px)' }}`
+  - B. 在 `src/app/dashboard/overview/layout.tsx:22` 的页面容器上添加：
+    `<PageContainer scrollable={false} className='pt-[env(safe-area-inset-top,0px)] ...'>`
+
+**Notes**:
+- 若仍被遮挡，优先检查是否已设置 `viewport-fit=cover`。
+- 可通过调整额外常量（如 `+ 6px` 或基础高度 `64px`）微调最终视觉高度。
+
 #### 1. Typewriter Facts Only Show Part of the Sentence
 **Cause**: The idle fact banner used `white-space: nowrap` and `overflow: hidden`, so long copy was clipped, especially on mobile.
 

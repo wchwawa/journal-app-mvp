@@ -13,8 +13,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   CalendarIcon,
-  FileTextIcon,
-  HashIcon
+  FileTextIcon
 } from 'lucide-react';
 import { formatDate } from '@/lib/format';
 import JournalEntryCard from './journal-entry-card';
@@ -54,11 +53,6 @@ const getMoodColor = (mood: string | null) => {
   }
 };
 
-const formatEmotions = (emotions: string[] | null) => {
-  if (!emotions || emotions.length === 0) return '';
-  return emotions.join(', ');
-};
-
 export default function DailyRecordCard({
   record,
   isExpanded,
@@ -69,7 +63,6 @@ export default function DailyRecordCard({
 
   const formattedDate = formatDate(record.date);
   const moodColor = getMoodColor(record.mood_quality);
-  const emotions = formatEmotions(record.dominant_emotions);
 
   return (
     <Card
@@ -82,42 +75,38 @@ export default function DailyRecordCard({
       <Collapsible open={isExpanded} onOpenChange={onToggleExpanded}>
         <CollapsibleTrigger asChild>
           <CardHeader className='hover:bg-accent/50 cursor-pointer transition-colors'>
-            <div className='flex items-center justify-between'>
-              <div className='flex items-center space-x-4'>
-                <div className='flex items-center space-x-2'>
+            <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+              <div className='flex flex-wrap items-center gap-2 text-sm sm:flex-nowrap sm:gap-4'>
+                <div className='flex items-center gap-2'>
                   {isExpanded ? (
                     <ChevronDownIcon className='text-muted-foreground h-4 w-4' />
                   ) : (
                     <ChevronRightIcon className='text-muted-foreground h-4 w-4' />
                   )}
-                  <CalendarIcon className='text-muted-foreground h-4 w-4' />
+                  <CalendarIcon className='text-muted-foreground h-4 w-4 shrink-0' />
                   <span className='font-medium'>{formattedDate}</span>
                 </div>
 
                 {record.mood_quality && (
-                  <Badge variant='outline' className={moodColor}>
+                  <Badge
+                    variant='outline'
+                    className={`${moodColor} px-2 py-0.5 text-xs whitespace-nowrap sm:text-sm`}
+                  >
                     {record.mood_quality}
                   </Badge>
                 )}
 
-                <div className='text-muted-foreground flex items-center space-x-1 text-sm'>
-                  <FileTextIcon className='h-3 w-3' />
+                <div className='text-muted-foreground flex items-center gap-1 text-xs sm:text-sm'>
+                  <FileTextIcon className='h-3 w-3 shrink-0' />
                   <span>{record.entry_count} entries</span>
                 </div>
               </div>
-
-              {emotions && (
-                <div className='text-muted-foreground flex items-center space-x-1 text-sm'>
-                  <HashIcon className='h-3 w-3' />
-                  <span className='max-w-48 truncate'>{emotions}</span>
-                </div>
-              )}
             </div>
 
             {/* Summary preview - only shown when collapsed */}
             {!isExpanded && (
-              <div className='mt-2 pl-6'>
-                <p className='text-muted-foreground line-clamp-2 text-sm'>
+              <div className='mt-2 pl-6 sm:pl-10'>
+                <p className='text-muted-foreground line-clamp-2 text-sm break-words'>
                   {record.summary}
                 </p>
               </div>
@@ -133,7 +122,9 @@ export default function DailyRecordCard({
                 <FileTextIcon className='h-4 w-4' />
                 Daily Summary
               </h4>
-              <p className='text-sm leading-relaxed'>{record.summary}</p>
+              <p className='text-sm leading-relaxed break-words'>
+                {record.summary}
+              </p>
             </div>
 
             {/* Journal entries */}

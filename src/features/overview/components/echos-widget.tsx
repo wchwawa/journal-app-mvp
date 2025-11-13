@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Sparkles } from 'lucide-react';
+import { NotebookText } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 
@@ -68,7 +68,7 @@ export default function EchosWidget() {
           whileHover={{ rotate: 360 }}
           transition={{ duration: 0.6, ease: 'easeInOut' }}
         >
-          <Sparkles className='h-5 w-5 text-white drop-shadow-sm' />
+          <NotebookText className='h-5 w-5 text-white drop-shadow-sm' />
         </motion.div>
 
         {/* Text with gradient on hover */}
