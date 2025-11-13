@@ -69,14 +69,16 @@ The A0 Daily Mood Record module has been successfully implemented as the foundat
 ##### Database Query Optimization
 
 ```typescript
-// Date-based filtering for today's entries
-const today = new Date().toISOString().split('T')[0];
+// Date-based filtering using local time zone boundaries
+import { getLocalDayRange } from '@/lib/timezone';
+
+const { start, end } = getLocalDayRange();
 const { data, error } = await supabase
   .from('daily_question')
   .select('*')
   .eq('user_id', user.id)
-  .gte('created_at', today)
-  .lt('created_at', nextDay)
+  .gte('created_at', start)
+  .lte('created_at', end)
   .single();
 ```
 
@@ -107,12 +109,13 @@ window.dispatchEvent(event);
 ```typescript
 // Database query with caching
 export const getTodayMoodEntry = cache(async (supabase, userId) => {
-  const today = new Date().toISOString().split('T')[0];
+  const { start, end } = getLocalDayRange();
   return await supabase
     .from('daily_question')
     .select('*')
     .eq('user_id', userId)
-    .gte('created_at', today)
+    .gte('created_at', start)
+    .lte('created_at', end)
     .single();
 });
 
@@ -206,11 +209,11 @@ export function useTodayMood() {
 
 #### Future Refactoring Preparation
 
-##### RAG Integration Readiness
+##### Forward Compatibility (Optional RAG)
 
-- Component designed for easy data extraction when RAG system implemented
-- Emotional data structure (array format) supports vector embedding
-- Timestamp and user association ready for knowledge graph integration
+- Note: Module C currently uses a deterministic context tool (non‑RAG) that queries relational tables precisely.
+- Components are structured so that, if RAG is introduced later, data can be exported for embeddings/graph linkage without major refactors.
+- Emotional arrays and timestamps remain suitable for future vector/graph expansion.
 
 ##### Extensibility Considerations
 
@@ -320,7 +323,8 @@ The A1 Audio Journal Recording module has been successfully implemented as a voi
    transcripts table:
    - user_id: Clerk user ID
    - audio_id: Reference to audio_files
-   - text: Combined transcription + summary
+   - text: Raw transcription text
+   - rephrased_text: AI first-person rewrite for readability
    - language: 'en' (future: auto-detect)
    ```
 
@@ -402,6 +406,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGci****
 3. Process recording → API transcription + summarization
 4. Save to database → audio_files + transcripts
 5. Update UI → Dispatch event for data refresh
+6. Background tasks → Generate/Upsert daily summary for the date; then trigger Echos sync for that date (non‑blocking)
 
 ### Known Limitations & Future Enhancements
 
@@ -486,7 +491,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGci****
 
 ### Overview
 
-The Daily Summary Generation feature has been successfully implemented as part of the A2 User's Journal module. This feature automatically generates AI-powered daily summaries based on user's journal entries, providing meaningful reflection and insight into daily experiences.
+The Daily Summary Generation feature has been successfully implemented as part of the A2 User's Journal module. This feature automatically generates AI-powered daily summaries based on user's journal entries, providing meaningful reflection and insight into daily experiences. After summaries are upserted, the system triggers Echos sync in the background to refresh daily/period reflections without blocking the summary API.
 
 ### Implementation Details
 
@@ -529,11 +534,11 @@ The Daily Summary Generation feature has been successfully implemented as part o
    CREATE TABLE daily_summaries (
      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
      user_id TEXT NOT NULL,
-     summary_date DATE NOT NULL,
-     summary_text TEXT NOT NULL,
+     date DATE NOT NULL,
+     summary TEXT NOT NULL,
      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-     UNIQUE(user_id, summary_date)
+     UNIQUE(user_id, date)
    );
    ```
 
@@ -571,7 +576,7 @@ const completion = await openai.chat.completions.create({
 
 - **User Isolation**: Queries filtered by authenticated user ID
 - **Date Validation**: Proper date parsing and range validation
-- **Duplicate Prevention**: Unique constraint on user_id + summary_date
+- **Duplicate Prevention**: Unique constraint on user_id + date
 - **Content Sanitization**: AI output sanitized before database storage
 
 ##### Error Handling Strategy
@@ -630,11 +635,11 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGci****
 CREATE TABLE daily_summaries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id TEXT NOT NULL,
-  summary_date DATE NOT NULL,
-  summary_text TEXT NOT NULL,
+  date DATE NOT NULL,
+  summary TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(user_id, summary_date)
+  UNIQUE(user_id, date)
 );
 
 -- Add RLS policy for user isolation
@@ -663,8 +668,8 @@ curl -X POST https://yourapp.com/api/generate-daily-summary \
   "summary": {
     "id": "uuid-here",
     "user_id": "user_123",
-    "summary_date": "2025-01-17",
-    "summary_text": "Today was a day of reflection and productivity. I completed three important tasks despite feeling unmotivated initially. The journal entries show a progression from uncertainty in the morning to satisfaction by evening, highlighting personal growth and resilience.",
+    "date": "2025-01-17",
+    "summary": "Today was a day of reflection and productivity. I completed three important tasks despite feeling unmotivated initially. The journal entries show a progression from uncertainty in the morning to satisfaction by evening, highlighting personal growth and resilience.",
     "created_at": "2025-01-17T20:30:00Z"
   }
 }
@@ -762,7 +767,7 @@ The A2 User's Journal module has been successfully implemented as a comprehensiv
      - Automatic daily summary regeneration after deletion
    - **Audio Playback**:
      - Play/pause controls for each journal entry
-     - Requires `/api/audio/[id]` endpoint implementation (future)
+     - Served via `/api/audio/[id]` endpoint (authenticated, private bucket backed)
 
 4. **Data Query Implementation**
 
@@ -829,6 +834,12 @@ The A2 User's Journal module has been successfully implemented as a comprehensiv
 - **Daily Summary Trigger**: Both edit and delete trigger regeneration
 - **Authentication**: Clerk session validation on all operations
 
+##### Integration with Module C (Voice Companion)
+
+- Module C uses a deterministic `fetch_user_context` tool (non‑RAG) to read `daily_summaries`, `daily_question`, and `period_reflections`.
+- Time scopes are explicit (today/week/month/custom) with optional `anchorDate`/`range`, matching the date handling in Module A.
+- This contract ensures precise retrieval for the agent while keeping latency and complexity low.
+
 #### Security Implementation
 
 - **User Isolation**: All queries filtered by authenticated user_id
@@ -860,7 +871,7 @@ The A2 User's Journal module has been successfully implemented as a comprehensiv
 
 #### Current Limitations
 
-1. **Audio Playback**: Requires `/api/audio/[id]` endpoint implementation
+1. **Audio Streaming Optimization**: Endpoint serves full objects; partial content/range requests could be optimized further
 2. **Export Functionality**: No download options for journals
 3. **Bulk Operations**: No multi-select for batch actions
 4. **Advanced Search**: Limited to summary text search
@@ -894,7 +905,7 @@ The A2 User's Journal module has been successfully implemented as a comprehensiv
 **Implementation Status**: ✅ Complete and Production Ready
 **UI/UX Status**: ✅ Clean, intuitive interface following design guidelines
 **Integration Status**: ✅ Fully integrated with A0, A1, and daily summaries
-**Next Module**: Future RAG implementation
+**Next Module**: Module C Voice Companion（deterministic relational context；no RAG）
 **Dependencies**: All A0/A1 components, daily summaries table
 **Last Updated**: 2025-01-24
 
@@ -914,6 +925,7 @@ The A2 User's Journal module has been successfully implemented as a comprehensiv
 - `src/features/daily-record/components/audio-journal-panel.tsx` - Embedded audio recording panel (production version)
 - `src/features/daily-record/components/audio-journal-modal.tsx` - Legacy modal implementation (deprecated)
 - `src/app/api/transcribe/route.ts` - Transcription API endpoint
+- `src/app/api/audio/[id]/route.ts` - Authenticated audio serving endpoint
 - `src/lib/supabase/admin.ts` - Admin client for RLS bypass
 - `src/hooks/use-audio-journal.ts` - Audio journal data hook
 - `src/lib/supabase/queries.ts` - Extended with audio journal queries
