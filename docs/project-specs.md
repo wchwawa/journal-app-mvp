@@ -1,17 +1,12 @@
 ## Implementation Phases & Data Flow
 
-**IMPORTANT**: The current implementation phase focuses on Module A (Daily Record) with data flowing to relational database only. The RAG system (vector database, knowledge graph, AI agent) will be implemented in later phases.
+Status: The project is in UI polish wrap‑up. Module C (AI voice companion) does not use RAG; instead it relies on a deterministic context tool that queries relational data in Supabase.
 
-**Current Phase**:
+**Current Phase**
 
-- Module A data flows to Supabase Postgres tables only
-- No RAG integration, vector embeddings, or AI processing
-
-**Future Phase - RAG Integration**:
-
-- When RAG module implementation begins, Module A will undergo partial refactoring
-- Data will be duplicated/synced to vector database and knowledge graph
-- AI agent will process existing Module A data for semantic understanding
+- Modules A and C use Supabase Postgres tables as the single source of truth.
+- Module C retrieves user context by calling `fetch_user_context` with explicit time scopes (today/week/month/recent/custom) and optional `anchorDate`/`range`, then queries `daily_summaries`, `daily_question`, and `period_reflections`.
+- No vector embeddings or knowledge graph in the agent path; web search is available as a separate tool with per‑day quotas.
 
 ---
 
@@ -279,25 +274,28 @@ Echos 以固定周期（Daily、Weekly、Monthly）生成结构化的反思卡�
 
 ## Module C: AI voice companion
 
-**goal** 用户的私人日记伴侣，提供基于AI的自然的语音交互体验，智能调用用户的日记结构化数据作为上下文，给用户提供情绪价值的同时帮助用户reflection曾经发生的事，
+**goal** 用户的私人日记伴侣，提供自然的语音交互体验；当用户询问过往事件/情绪/主题/目标时，Agent 通过“上下文工具”从关系型数据中精确检索所需信息（非向量 RAG）。
 
-**user story** 我想要一个可以用声音对话的AI的智能小助手，在我想要回顾我日记里记录内容的时候，他可以帮我回忆，并且按照我想要的角色（语气），给我到我足够的情绪价值。
+**user story** 我希望用语音与 AI 小助手对话，回顾并复盘日记内容；助手能基于我说的“时间范围/周期/关键词”自动转换成明确的查询参数并检索我的数据，然后以我偏好的语气给予情绪价值与反思支持。
 
 **basic features**
-1. 一个使用音频交互的AI agent，名字叫Echo，他的tool是：1. 智能调用用户的日记结构化数据作为上下文。2. 网络搜索
-2. 提供不同的voice profile, 可供不同风格的用户选择， 我目前的方案是：冷静平和男， 冷静平和女，温柔细腻男声，温柔细腻女声，活泼可爱男，活泼可爱女，圣诞老人（圣诞季特别声线）
-3. 功能按钮以AI风格的悬浮球形式呈现，无论当前端点（需要登录后）/ 或者放置在Echos端点下，统一AI相关功能入口
-4. （optional）对话可以选择以文字形式实时渲染
+1. 语音交互 Agent（Echo）：工具集包括（1）`fetch_user_context`（关系型精确检索），（2）`web_search`（外部信息）。
+2. 多种 voice profile：冷静平和男/女、温柔细腻男/女、活泼可爱男/女、节日声线等。
+3. 全局入口：AI 风格悬浮球，登录后随处可用；Echos 页面也提供统一入口。
+4. （可选）文字实时渲染最近一轮 AI 回复。
+
+**design decisions**（Module C 不使用 RAG）
+- 采用显式“时间范围参数化”的上下文工具以提升检索“精准度、可解释性、稳定性”，避免不必要的向量召回成本与延迟；未来如需“模糊回忆”再评估 RAG。
+- 数据来源为 `daily_summaries`、`daily_question`、`period_reflections` 等关系表；工具会把“昨天/上周/某段区间”映射为 `{ scope, anchorDate, range }`。
+- `web_search` 有日额度限制，用于显式外部知识补充。
 
 **sample user workflow**
-activate agent -> the agent greeting to user -> user prompt(voice) back -> so on...
+activate agent → agent 问候并声明本地日期 → 用户发问（语音）→ agent 根据语义先调用 `fetch_user_context`（必要时）→ 生成并播放语音回复。
 
-activate agent -> the agent greeting to user -> user ask remind them anything they need to be done these days -> agent call tools to retrive user personal journaling data as context, then agent respond
-
-**overall expectation** Siri-like AI assistant，整体的感觉就类似siri，点击功能按钮就activate voice agent, 即可开始语音对话。
+**overall expectation** 类 Siri 的语音体验：点击悬浮球即刻进入 push‑to‑talk，会话最长 10 分钟，支持快速中断与继续。
 
 **current progress (2025-11-10)**
-- ✅ 浏览器端 push-to-talk 流程已打通：悬浮球入口、voice profile 切换、10 分钟会话守护。
-- ✅ Echo 可实时调用 `fetch_user_context`（Supabase）与 `web_search` 工具，并播放语音回复。
-- ✅ 临时密钥颁发与 WebRTC 连接均采用 OpenAI Agents SDK；日记结构化数据读取与网络搜索均已上线。
-- ⏳ 下一步：增强工具语义（日期范围推断）、填充示例数据、升级到最新 SDK 并在兼容模式下重新测试。
+- ✅ 浏览器端 push‑to‑talk 已打通：悬浮球入口、voice profile 切换、10 分钟会话守护。
+- ✅ Echo 可实时调用 `fetch_user_context`（Supabase 关系检索）与 `web_search` 工具，并播放语音回复。
+- ✅ 临时密钥颁发与 WebRTC 连接均采用 OpenAI Agents SDK（Realtime）。
+- ⏳ 下一步：增强工具语义（日期范围推断）、补充示例数据、升级到最新 SDK 并回归测试。

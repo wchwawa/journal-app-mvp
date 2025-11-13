@@ -1,20 +1,20 @@
 **Project Description**
 
-EchoJournal, is developing an diary mobile application to help digital diary writers capture their daily reflections with voice transcription. EchoJournal begins with voice transcription as the gateway to your thoughts. From there, it provides high-accuracy, AI-powered organization of your journal entries and a companion powered by a state-of-the-art voice-native large language model.
+EchoJournal is developing a voice-first journaling application to help diarists capture daily reflections with speech transcription. EchoJournal begins with voice transcription as the gateway to your thoughts. From there, it provides precise, AI-powered organization of your journal entries and a companion powered by a state-of-the-art voice-native large language model.
 
 ### **Features**
 
-- **Journal‑centric Agent** (Alpha Feature) — Built on the cutting-edged voice native llm, the voice agent understands context, emotion and timelines, letting users ask things like "What patterns did you notice in my mood the last three months?" or "Remind me of the goals I set after my Japan trip."
+- **Journal‑centric Agent** (Alpha Feature) — Built on a voice‑native LLM, the agent understands context, emotion, and timelines, letting users ask things like "What patterns did you notice in my mood the last three months?" or "Remind me of the goals I set after my Japan trip."
 
-  - **Life‑Term Memory powered by agentic RAG orchestration system** — Each entry is broken into structured facets (mood, topics, entities, goals) stored in Postgres JSONB and mirrored as a Neo4j knowledge graph. Full text is embedded into Supabase Vector for semantic recall.
-  - **Human-level voice interaction experience** — By adopt state-of-the-art voice-native models to ensure the interaction feels as natural as speaking with a human companion—supporting real-time interruptions, natural tone and inflection, emotionally stable responses, supportive personality traits, multilingual interaction, and seamless language switching.
-  - **Customiseable voice** - Users can personalize the assistant's tone, pronunciation, personality, and speech speed.
+  - **Deterministic long‑term memory via context tool (no RAG in Module C)** — Entries are stored in relational tables (Postgres JSONB). The agent retrieves user context by calling a dedicated `fetch_user_context` tool that translates natural‑language time phrases into explicit parameters (e.g., today/week/month, anchorDate, custom ranges) and queries `daily_summaries`, `daily_question`, and `period_reflections`. This approach increases precision and reduces latency and operational complexity. Optional vector/graph integration may be explored later for fuzzy recall.
+  - **Human‑level voice interaction experience** — Uses state‑of‑the‑art voice‑native models to ensure the interaction feels natural—supporting push‑to‑talk, interruption handling, stable emotional tone, supportive personality traits, and seamless voice switching.
+  - **Customizable voice** — Users can personalize the assistant's tone and speech via selectable voice profiles.
 
-- **Voice-focused User interaction on Journal taking**— A hybrid STT pipeline feeds the assistant, but remains behind the scenes—the journal taking will almost exclusively with the conversational agent.
+- **Voice‑focused user interaction on journaling** — A hybrid STT pipeline feeds the assistant while remaining invisible to the user—journaling is fully conversational.
 
-  - **Conversational Input to Journal Format:** A hybrid speech-to-text (STT) pipeline powers the assistant while remaining invisible to the user—interactions are fully conversational.
-  - **Voice Recording & Real-Time Subtitles(optional):** Voice entries are saved with synchronized transcription display.
-  - **Automatic Sentiment and Goal Detection:** The system analyzes content to infer mood and identify implicit personal goals.
+  - **Conversational input → journal format:** Transcription + AI rephrasing produces readable first‑person entries.
+  - **Voice recording & optional real‑time subtitles:** Voice entries are saved with synchronized transcription.
+  - **Automatic sentiment and goal detection:** The system analyzes content to infer mood and identify implicit goals.
 
 - **Scheduled Self-Reflection Event:** Users receive regular reflection prompts (weekly, monthly, quarterly).
 - **Privacy by Design** — End‑to‑end AES‑GCM, zero‑knowledge key management and differential‑privacy analytics.
@@ -35,13 +35,13 @@ EchoJournal, is developing an diary mobile application to help digital diary wri
 
 - STT accuracy & cost: Hybrid model, silence trimming, GPU batch inference
 - LLM token spend: Context pruning, caching, tiered pricing
-- RAG latency: Two‑stage retrieval (metadata → vector), edge caching
-- Privacy & compliance: end-to-end encryption, local key storage, regular audits
+- Context retrieval: Deterministic relational queries with explicit time bounds; proper indexes and lightweight caching
+- Privacy & compliance: end‑to‑end encryption, local key storage, regular audits
 
 ### **Deliverables**
 
-1. **Agentic AI voice system** (OpenAI Agent SDK / LangGraph).
-2. **Agentic RAG system** (Supabase, mem0, Firebase, neo4j, langgraph).
-3. **Minimalist Web UI (PWA):** Record, playback, history and converse with the agentic system
-4. **Report** – A report of the project progress and status.
-5. **Foundational Data Schema** – Postgres JSONB + vector index + graph, ready for future feature pivots.
+1. **AI voice companion** using OpenAI Agents SDK (Realtime) with push‑to‑talk, voice profiles, and ephemeral session tokens.
+2. **Deterministic context tool + relational retrieval** (Supabase) for precise user context; optional vector/graph integration later.
+3. **Minimalist Web UI (PWA):** Record, playback, history, and conversational agent integration.
+4. **Report** – Project progress and status summary.
+5. **Foundational data schema** – Postgres JSONB tables (`audio_files`, `transcripts`, `daily_question`, `daily_summaries`, `period_reflections`) suitable for future extensions.
