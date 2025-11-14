@@ -29,7 +29,6 @@ AGENTS.md
 /out/
 /CLAUDE.md
 /AGENTS.md
-docs./
 # production
 /build
 dist/

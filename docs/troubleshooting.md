@@ -1,17 +1,17 @@
 # Troubleshooting Guide
 
-## Voice Agent Realtime 集成
+## Voice Agent Realtime Integration
 
-| 症状 | 原因 | 修复 |
+| Symptom | Root Cause | Fix |
 | --- | --- | --- |
-| `/api/agent/token` 返回 `Unknown parameter: 'session.voice'` 或 `'model'` | 调用了 `client_secrets` 接口并在 body 中传入不被允许的字段。 | 使用 OpenAI SDK 的 `openai.beta.realtime.sessions.create({ model })`，或严格按官方示例提交 `{"session": {"type": "realtime", "model": "..."}}`。 |
-| Console 报 `Unknown parameter: 'session.type'` | `@openai/agents-realtime@0.3.x` 在 `session.update` payload 中包含服务器已弃用的字段。 | 将 `@openai/agents` / `@openai/agents-realtime` / `openai` 降级到 0.0.10/5.8.2（与 sample 一致），或等待官方修复新版本。 |
-| `Failed to parse SessionDescription. { Expect line: v= }` | 未显式指定 Realtime 连接 URL，返回 JSON 错误而非 SDP。 | `session.connect({ apiKey, url: 'https://api.openai.com/v1/realtime?model=...' })`。 |
-| Zod 提示 `.optional()` without `.nullable()` | 工具 schema 中 optional 字段未允许 null，旧版 SDK 不接受。 | 使用 `nullable().optional()`，并在发送 payload 前删除值为 null 的字段。 |
-| `/api/agent/tools/context` 返回 422 `Expected object, received null` | payload 中保留了 `range: null` 等字段。 | 在工具执行前删除所有为 null 的字段。 |
-| Console 报 `getInitialSessionConfig is not a function` | 旧版 SDK 无此方法。 | 移除该调试调用。 |
-| Echo 回答的 “今天/昨天/上周” 与真实日期不符 | 统一时区 + UTC 截断导致 `anchorDate` 落后 1 天；模型也不知道当前日期。 | `scope === 'today'` 时直接 `eq('date', anchorDate)`；在系统 prompt 中注入 “Today is ${anchorDate} (Australia/Sydney)” 等上下文，提示模型调用工具时显式设置 `anchorDate` / `range`。 |
-| 关闭 Voice 面板后 session 仍运行，几分钟后超时报错 | Dialog 关闭时没有主动断开 Realtime session，后台会话继续运行到 10 分钟上限。 | 在面板组件的 `onOpenChange` 回调里检测 `nextOpen === false` 时调用 `disconnect()`，确保退出即结束会话。 |
+| `/api/agent/token` returns `Unknown parameter: 'session.voice'` or `'model'` | `client_secrets` was called directly and the body contained unsupported fields. | Use the OpenAI SDK `openai.beta.realtime.sessions.create({ model })`, or follow the official example and send `{"session": {"type": "realtime", "model": "..."}}`. |
+| Console shows `Unknown parameter: 'session.type'` | `@openai/agents-realtime@0.3.x` includes deprecated fields in the `session.update` payload. | Pin `@openai/agents` / `@openai/agents-realtime` / `openai` to 0.0.10 / 5.8.2 (matching the sample), or wait for an upstream fix and then upgrade. |
+| `Failed to parse SessionDescription. { Expect line: v= }` | The Realtime connection URL was not explicitly set, so the endpoint returned JSON instead of SDP. | Call `session.connect({ apiKey, url: 'https://api.openai.com/v1/realtime?model=...' })`. |
+| Zod reports `.optional()` without `.nullable()` | Optional fields in the tool schema did not allow `null`, which the older SDK does not accept. | Use `nullable().optional()`, and strip any fields that are `null` from the payload before sending. |
+| `/api/agent/tools/context` returns 422 `Expected object, received null` | The payload still contained fields like `range: null`. | Remove all `null` fields before invoking the tool. |
+| Console shows `getInitialSessionConfig is not a function` | The older SDK does not expose this helper. | Remove the debug call. |
+| Echo’s answers about “today / yesterday / last week” don’t match real dates | The unified timezone + UTC truncation caused `anchorDate` to lag by one day, and the model did not know the current date. | For `scope === 'today'` query by `eq('date', anchorDate)`, and inject “Today is ${anchorDate} (Australia/Sydney)” into the system prompt so the model sets `anchorDate` / `range` explicitly when calling tools. |
+| Session keeps running after closing the Voice panel and times out a few minutes later | The dialog closes without explicitly disconnecting the Realtime session, so it continues until the 10‑minute limit. | In the panel component’s `onOpenChange` callback, detect `nextOpen === false` and call `disconnect()` so closing the panel always ends the session. |
 
 ## Common Development Issues and Solutions
 
@@ -207,22 +207,22 @@ TS7016: Could not find a declaration file for module 'wavesurfer.js/dist/plugins
 
 ### UI & Animation Issues
 
-#### 3. WebView 顶部 Profile（头像）栏“消失”/被遮挡
-**Symptoms**: 在 iOS WebView 或带刘海设备内嵌浏览器中，进入 `/dashboard/overview` 后，顶部 Header 的头像/Profile 下拉看起来“不见了”。
+#### 3. WebView top Profile (avatar) bar “disappears” / is clipped
+**Symptoms**: In an iOS WebView or embedded browser on devices with a notch, the header avatar/profile dropdown on `/dashboard/overview` appears to vanish.
 
-**Root Cause**: 将 Header 设为 `sticky top-0` 后，又移除了页面容器默认的顶部内边距；若未为粘顶 Header 预留 `safe-area` 顶部安全区，WebView 的状态栏/刘海会把 Header 上缘压住，从视觉上像是“向上移出了视口”。未开启 `viewport-fit=cover` 时，`env(safe-area-inset-top)` 始终为 0 也会导致补偿失败。
+**Root Cause**: The header is `sticky top-0` and the default top padding on the page container was removed. Without reserving `safe-area` space for the sticky header, the WebView status bar/notch overlaps the header, making it look like it has moved out of the viewport. If `viewport-fit=cover` is not set, `env(safe-area-inset-top)` stays at 0 and padding compensation fails.
 
 **Fix**:
-- 启用安全区支持：在 `src/app/layout.tsx:1` 的 `<head>` 中加入 `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">`
-- 为 Header 预留安全区高度（两选一）：
-  - A. 在 `src/components/layout/header.tsx:11` 的 `<header>` 上添加：
+- Enable safe-area support: add `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` to `<head>` in `src/app/layout.tsx:1`.
+- Reserve safe-area height for the header (choose one):
+  - A. On the `<header>` in `src/components/layout/header.tsx:11`, add  
     `style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 6px)', minHeight: 'calc(64px + env(safe-area-inset-top, 0px) + 6px)' }}`
-  - B. 在 `src/app/dashboard/overview/layout.tsx:22` 的页面容器上添加：
+  - B. On the page container in `src/app/dashboard/overview/layout.tsx:22`, add  
     `<PageContainer scrollable={false} className='pt-[env(safe-area-inset-top,0px)] ...'>`
 
 **Notes**:
-- 若仍被遮挡，优先检查是否已设置 `viewport-fit=cover`。
-- 可通过调整额外常量（如 `+ 6px` 或基础高度 `64px`）微调最终视觉高度。
+- If the header is still clipped, first confirm `viewport-fit=cover` is set.
+- You can tweak constants (like `+ 6px` or the base `64px` height) to fine‑tune the visual height.
 
 #### 1. Typewriter Facts Only Show Part of the Sentence
 **Cause**: The idle fact banner used `white-space: nowrap` and `overflow: hidden`, so long copy was clipped, especially on mobile.
@@ -596,25 +596,25 @@ Create a concise, structured summary that:
 
 ### Symptoms
 - After switching models to GPT‑5/5‑mini, recording/transcribe sometimes returned 500/400 and Echos cards failed to generate; JSON parsing errors like `Unexpected end of JSON input`.
-- Daily Summaries (table)显示“今天有多条”，但 `transcripts` 看起来“今天只有少量”；前端列表都能看到并可编辑，Studio 过一阵子又“突然出现”。
-- `/api/transcribe` 响应耗时较长，前端等待感强。
+- Daily Summaries (table) showed “multiple entries today”, but `transcripts` appeared to have only a few rows; the frontend list could see and edit them, and Studio showed additional rows later.
+- `/api/transcribe` responses felt slow and the UI wait time was noticeable.
 
 ### Root Causes
-- GPT‑5 chat 参数不兼容：不支持 `temperature`/`top_p`/`max_tokens`，需要改用 `max_completion_tokens` 或直接迁移到 Responses API；同时 `choices[0].message.content` 可能为空或为数组，直接 `JSON.parse(content)` 会抛错。
-- 时区窗口不一致：前端按“本地日界”看“今天”，而 Studio 过滤按 UTC；或查询用 `toISOString().split('T')[0]` 导致与期望不一致。
-- 阻塞式流程：日总结 + Echos 同步在录音后同步等待，拉长了 `/api/transcribe` 响应时间。
+- GPT‑5 chat parameter incompatibility: it does not support `temperature` / `top_p` / `max_tokens`, requiring `max_completion_tokens` or a move to the Responses API. In addition, `choices[0].message.content` can be empty or an array, so directly calling `JSON.parse(content)` can throw.
+- Timezone window mismatch: the frontend treats “today” as the local day, while Studio filters by UTC; using `toISOString().split('T')[0]` further diverges from user expectations.
+- Blocking pipeline: daily summary + Echos sync ran synchronously after recording, lengthening `/api/transcribe` response times.
 
 ### Fixes & Changes
-- 模型回退：统一回退为 GPT‑4 系列（`gpt-4o`/`gpt-4o-mini`），参数恢复 `max_tokens` + `temperature`，保证稳定性（`src/app/api/transcribe/route.ts`, `src/app/api/generate-daily-summary/route.ts`, `src/lib/reflections/generator.ts`）。
-- JSON 解析防护（建议）：对 `choices[0].message.content` 判空；如返回为数组则拼接 `text` 字段；`try/catch JSON.parse` 并提供 fallback。
-- 非阻塞化：把“生成日总结 + Echos 同步”改为后台任务，录音接口尽快返回（`src/app/api/transcribe/route.ts`），手动生成日总结后也异步触发 Echos（`src/app/api/generate-daily-summary/route.ts`）。
-- 时区一致性（建议）：客户端“今天”查询使用本地起止时间转换为 ISO，或后端统一以用户时区计算窗口并落库查询，避免“GUI 看不到”。
+- Model fallback: standardised on the GPT‑4 family (`gpt-4o` / `gpt-4o-mini`) with `max_tokens` + `temperature` for stability (`src/app/api/transcribe/route.ts`, `src/app/api/generate-daily-summary/route.ts`, `src/lib/reflections/generator.ts`).
+- JSON parsing hardening (recommended): guard `choices[0].message.content`; if it is an array, join the `text` fields; wrap `JSON.parse` in try/catch and provide a fallback.
+- Non‑blocking pipeline: move “generate daily summary + Echos sync” into background work so the recording endpoint returns quickly (`src/app/api/transcribe/route.ts`), and trigger Echos asynchronously after manual summary generation (`src/app/api/generate-daily-summary/route.ts`).
+- Timezone consistency (recommended): either have the client use local start/end times converted to ISO for “today” queries, or let the backend compute windows by user timezone and store/query accordingly to avoid “GUI can’t see it” issues.
 
 ### Verification Playbook
-1) 用 DevTools MCP 抓取 `/api/transcribe`：确认 200，响应体含 `audioFileId`、`transcriptId`。
-2) SQL 快速核对（UTC vs 本地时区）：
+1) Use DevTools MCP to capture `/api/transcribe`: confirm 200 and that the response contains `audioFileId` and `transcriptId`.
+2) SQL quick check (UTC vs local timezone):
 ```sql
--- UTC 当天计数
+-- UTC count for “today”
 WITH b AS (
   SELECT date_trunc('day', now() AT TIME ZONE 'UTC') AS s,
          date_trunc('day', now() AT TIME ZONE 'UTC') + interval '1 day' AS e)
@@ -623,7 +623,7 @@ FROM transcripts t, b WHERE t.created_at >= b.s AND t.created_at < b.e
 UNION ALL
 SELECT 'audio_utc', COUNT(*) FROM audio_files a, b WHERE a.created_at >= b.s AND a.created_at < b.e;
 
--- 悉尼当天计数（替换为你的时区）
+-- Sydney count for “today” (replace with your timezone)
 WITH tz AS (SELECT (now() AT TIME ZONE 'Australia/Sydney')::date AS d)
 SELECT 'transcripts_syd', COUNT(*) FROM transcripts t, tz
 WHERE (t.created_at AT TIME ZONE 'Australia/Sydney')::date = (SELECT d FROM tz)
@@ -631,24 +631,24 @@ UNION ALL
 SELECT 'audio_syd', COUNT(*) FROM audio_files a, tz
 WHERE (a.created_at AT TIME ZONE 'Australia/Sydney')::date = (SELECT d FROM tz);
 ```
-3) Studio 视图：不加日期过滤，先按 `created_at DESC` 查看最新，再精确搜索 `id`。
+3) Studio view: disable date filters, sort by `created_at DESC` to see the latest rows, then search by `id` for precise verification.
 
 ### Dev Tips
-- 本地旁路鉴权以便 DevTools 测试：`.env.local` 加 `DEV_DISABLE_AUTH=true`，仅在 `NODE_ENV=development` 下生效；中间件将放过页面与 API（`src/middleware.ts`）。
-- 录音链路数据流：Storage→`audio_files`→`transcripts`→（后台）`daily_summaries`→（后台）`period_reflections`。
+- Local auth bypass for DevTools testing: add `DEV_DISABLE_AUTH=true` to `.env.local`, effective only when `NODE_ENV=development`; the middleware then allows pages and APIs through (`src/middleware.ts`).
+- Recording data flow: Storage → `audio_files` → `transcripts` → (background) `daily_summaries` → (background) `period_reflections`.
 
 ### Lessons Learned
-- 在切换模型前验证参数/响应结构差异（GPT‑5 应优先使用 Responses API）。
-- UI/前端“今天”的定义应与查询/Studio 检视保持一致（明确时区）。
-- 后台长耗时任务尽量异步化，缩短用户感知延迟。
+- Before switching models, verify parameter/response shape differences (for GPT‑5, prefer the Responses API).
+- The UI/frontend definition of “today” should match the query logic and Studio inspection (explicit timezone).
+- Long‑running backend tasks should be made asynchronous when possible to reduce perceived latency.
 
-### Recovery Steps（安全清理 + 重新生成）
+### Recovery Steps (safe cleanup + regeneration)
 
-当出现“月/周卡片标题月份与内容不一致（UTC/本地月界错位）”时，建议按以下步骤恢复：
+If monthly/weekly card titles do not match their content (UTC vs local month boundary mismatch), recover as follows:
 
-1) 查找需要清理的错误卡片
+1) Find the cards that need cleanup
 ```sql
--- 审核最近的月/周卡片（仅读取）
+-- Review the most recent month/week cards (read‑only)
 SELECT period_type, period_start, period_end, created_at
 FROM period_reflections
 WHERE user_id = '<your_user_id>'
@@ -656,40 +656,40 @@ ORDER BY period_start DESC
 LIMIT 20;
 ```
 
-2) 精确删除错误月份（推荐显式 period_start）
+2) Precisely delete the incorrect months (explicit `period_start` recommended)
 ```sql
--- 示例（将 <your_user_id> 替换为你的实际 user_id）
+-- Example (replace <your_user_id> with your real user_id)
 DELETE FROM period_reflections
 WHERE user_id = '<your_user_id>'
   AND period_type = 'monthly'
   AND period_start IN ('2025-10-31','2025-09-30');
 ```
 
-可选：如果错误行很多，可以使用区间删除，但建议先 `SELECT` 预览确认再执行：
+Optional: if there are many bad rows, you can delete by time window, but always run the same WHERE clause as a `SELECT` first:
 ```sql
--- 按时间窗口删除最近一段时间内的“错误月卡”（示例）
--- 注意：先用同样 WHERE 条件执行 SELECT 确认后再改为 DELETE
+-- Example: delete “bad month” cards within a time window
+-- Important: run this as SELECT first, then convert to DELETE
 SELECT id, period_start, period_end, created_at
 FROM period_reflections
 WHERE user_id = '<your_user_id>'
   AND period_type = 'monthly'
   AND period_start < '2025-11-01';
 
--- 确认无误后再删除：
+-- After confirming, perform the delete:
 DELETE FROM period_reflections
 WHERE user_id = '<your_user_id>'
   AND period_type = 'monthly'
   AND period_start < '2025-11-01';
 ```
 
-3) 前端重新生成“当前周期”卡片
-- 进入 `/dashboard/echos`，切换到 Monthly，点击 “Refresh current period”；
-- 我们已修正刷新锚点逻辑：若列表顶部不是“进行中”卡，则以内“今天”为锚点生成当期月卡（本地月界）；
-- 同理，如需纠正周卡，切换到 Weekly 点击刷新。
+3) Regenerate the “current period” card from the frontend
+- Go to `/dashboard/echos`, switch to Monthly, and click “Refresh current period”.
+- The refresh anchor logic has been fixed: if the top card is not the in‑progress card, the system uses “today” as the anchor to generate the current monthly card (local month boundary).
+- Similarly, to correct weekly cards, switch to Weekly and click refresh.
 
-4) 验证结果
+4) Verify the result
 ```sql
--- 新的“本月”卡应为 period_start = 本地当月 1 号
+-- The new “current month” card should have period_start = local month 1st
 SELECT period_type, period_start, period_end, last_generated_at
 FROM period_reflections
 WHERE user_id = '<your_user_id>'
@@ -698,10 +698,10 @@ ORDER BY period_start DESC
 LIMIT 3;
 ```
 
-注意事项
-- 建议只清理 `period_reflections` 中错误的周/月卡；`daily_summaries` 为日粒度基表，不需要删除。
-- 执行 `DELETE` 前务必用 `SELECT` 预览同一 WHERE 条件，确保删除目标正确。
-- 代码层面我们已将周期边界改为“本地时区”，后续再生不会再跨月/跨周。
+Notes
+- Only clean up incorrect weekly/monthly cards in `period_reflections`; `daily_summaries` is the daily base table and should not be deleted.
+- Always run a `SELECT` with the same WHERE clause before executing `DELETE` to ensure the target set is correct.
+- The codebase now uses local timezone period boundaries, so regenerated cards will no longer cross months/weeks incorrectly.
 
 ### Build Failed: metadata in client component
 
@@ -710,7 +710,7 @@ LIMIT 3;
 x You are attempting to export "metadata" from a component marked with "use client"...
 ```
 
-**Cause**：`/dashboard/journals/stats/page.tsx` 是客户端组件 (`'use client'`)，仍导出 `metadata`。
+**Cause**: `/dashboard/journals/stats/page.tsx` is a client component (`'use client'`) but still exports `metadata`.
 
 **Fix**
 ```diff
@@ -738,9 +738,9 @@ diff --git a/src/app/dashboard/journals/stats/page.tsx b/src/app/dashboard/journ
 Type error: Argument of type '{ ... stats: { [k: string]: unknown } }' is not assignable to TablesUpdate<'daily_summaries'>...
 ```
 
-**Cause**：`cleanStats` 返回 `Record<string, unknown>`，无法赋值给 supabase `Json` 类型；`updatePayload`/`upsertPayload` 未显式使用 Supabase 类型。
+**Cause**: `cleanStats` returns `Record<string, unknown>`, which cannot be assigned to the Supabase `Json` type; `updatePayload` / `upsertPayload` do not explicitly use Supabase types.
 
-**Fix**（节选）
+**Fix** (excerpt)
 ```diff
 diff --git a/src/lib/reflections/generator.ts b/src/lib/reflections/generator.ts
 @@
@@ -789,7 +789,7 @@ diff --git a/src/lib/reflections/generator.ts b/src/lib/reflections/generator.ts
 };
 ```
 
-> 提示：若未来更换模型，确保 `MODEL_NAME` 与 Supabase JSON 类型同步更新。
+> Tip: if you change models in future, make sure `MODEL_NAME` stays in sync with the Supabase JSON type.
 
 ### Build Failed: Sentry client `beforeSend` type mismatch
 
@@ -799,8 +799,8 @@ Type error: Type '(event: Sentry.Event) => Sentry.Event' is not assignable to ty
 ```
 
 **Cause**
-- `src/instrumentation-client.ts` 复用了服务端 `scrubEvent`（`Sentry.Event` 签名），但浏览器 SDK 期望 `beforeSend` 的参数为 `ErrorEvent`。
-- `next build`（husky pre-push）会重新运行 TS 检查，即使编辑器未报错仍会阻塞 push。
+- `src/instrumentation-client.ts` reused the server‑side `scrubEvent` (typed as `Sentry.Event`), but the browser SDK expects `beforeSend` to receive an `ErrorEvent`.
+- `next build` (husky pre‑push) re‑runs TypeScript checks; even if the editor shows no errors, this can still block pushes.
 
 **Fix**
 ```ts
@@ -823,20 +823,20 @@ Sentry.init({
 ```
 
 **Verification**
-- 本地执行 `pnpm run build`，确认通过；之后 husky pre-push 也能成功。
-- 服务端 `src/instrumentation.ts` 保持 `Sentry.Event` 签名即可，无需同步修改。
+- Run `pnpm run build` locally and confirm it passes; afterwards the husky pre‑push hook will also succeed.
+- The server‑side `src/instrumentation.ts` can keep the `Sentry.Event` signature; no coordinated change is needed.
 
-## 修正思路与示例代码（Diff）
+## Fix Strategy & Example Diffs
 
-本节记录我们对“录音→转写→日总结→Echos 同步”链路的修正方案，并提供可直接参考的代码 Diff（基于现有代码库）。
+This section records how we fixed the “recording → transcription → daily summary → Echos sync” pipeline and provides code diffs that can be applied to the current codebase.
 
-### A. 将“日总结 + Echos 同步”改为后台异步，缩短前端等待
+### A. Make “daily summary + Echos sync” fully asynchronous to reduce perceived latency
 
-原因：保存音频与 transcripts 成功后即可返回成功。日总结与 Echos 生成是增值操作，不应阻塞主链路。
+Reason: once audio and transcripts are saved successfully we can return immediately. Daily summary and Echos generation are value‑added operations and should not block the main request path.
 
-涉及文件：`src/app/api/transcribe/route.ts`、`src/app/api/generate-daily-summary/route.ts`
+Files involved: `src/app/api/transcribe/route.ts`, `src/app/api/generate-daily-summary/route.ts`
 
-示例 Diff：
+Example diff:
 
 ```diff
 diff --git a/src/app/api/transcribe/route.ts b/src/app/api/transcribe/route.ts
@@ -908,13 +908,13 @@ diff --git a/src/app/api/generate-daily-summary/route.ts b/src/app/api/generate-
 +    })();
 ```
 
-### B. 统一“今天”的时间窗口（避免时区错乱）
+### B. Unify the “today” time window (avoid timezone drift)
 
-原因：客户端之前用 `toISOString().split('T')[0]` 计算今日边界，默认 UTC 日界，容易与本地/Studio 显示不一致。建议统一使用“本地 00:00:00–23:59:59.999”，转换为 ISO 再查询。
+Reason: the client previously used `toISOString().split('T')[0]` to calculate today’s boundary (UTC day), which diverged from local/Studio views. We recommend using local `00:00:00–23:59:59.999`, then converting to ISO for queries.
 
-涉及文件：`src/lib/supabase/queries.ts`
+Files involved: `src/lib/supabase/queries.ts`
 
-示例 Diff（变更）：
+Example diff (changes):
 
 ```diff
 diff --git a/src/lib/supabase/queries.ts b/src/lib/supabase/queries.ts
@@ -976,13 +976,13 @@ diff --git a/src/lib/supabase/queries.ts b/src/lib/supabase/queries.ts
        .order('created_at', { ascending: false });
 ```
 
-### C. 反思卡片的 JSON 解析加固（防止空 content/数组 content）
+### C. Harden reflection JSON parsing (handle empty/array `content`)
 
-原因：LLM 可能返回空字符串，或 `content` 是分片数组；直接 `JSON.parse(choices[0].message.content)` 会抛错。
+Reason: the LLM may return an empty string, or `content` as a chunked array; calling `JSON.parse(choices[0].message.content)` directly can throw.
 
-涉及文件：`src/lib/reflections/generator.ts`
+Files involved: `src/lib/reflections/generator.ts`
 
-示例 Diff（建议变更，展示 daily 以及 period 两处）：
+Example diff (recommended changes for both daily and period paths):
 
 ```diff
 diff --git a/src/lib/reflections/generator.ts b/src/lib/reflections/generator.ts
@@ -1018,11 +1018,11 @@ diff --git a/src/lib/reflections/generator.ts b/src/lib/reflections/generator.ts
 +  }
 ```
 
-> 注：若未来切换到 GPT‑5，建议整体改用 Responses API，并据其返回结构提取 `output_text` 或 `output[*].text`，再做 JSON 校验。
+> Note: if you later migrate to GPT‑5, we recommend moving to the Responses API and extracting `output_text` or `output[*].text` from its response before performing JSON validation.
 
 ---
 
-以上变更可以逐步采纳：A（已实现）提升响应速度；B、C（建议）用于消除时区与 JSON 边界问题，提升稳定性与可观测性。
+These changes can be adopted in stages: A (already implemented) improves response time; B and C (recommended) eliminate timezone/JSON edge cases and improve stability and observability.
 
 ## Integration Issues
 

@@ -1,6 +1,6 @@
 # Module B Implementation Guide — Echos
 
-> **Status (2025-11-05)** — 轻量版 MVP 已上线：数据库 schema、生成器、API、前端体验、每日摘要自动触发链路均已落地。性能优化、视觉动效与更细的异常处理待下一阶段集中处理。
+> **Status (2025-11-05)** — A lightweight MVP is live: the database schema, generators, APIs, frontend experience, and the auto-trigger pipeline for daily summaries have all been implemented. Performance tuning, richer motion design, and more granular error handling are planned for the next iteration.
 
 ## Overview
 
@@ -197,17 +197,17 @@ Allows light editing of a week/month card; sets edited=true.
 ### Updates (2025‑11‑06)
 
 1) Non-blocking generation
-- 音频保存成功后，录音接口不再同步等待“日总结 + Echos 同步”。二者在后台顺序执行，前端更快得到成功反馈。
+- After audio is successfully saved, the recording endpoint no longer waits synchronously for “daily summary + Echos sync”. Those follow-up tasks now run sequentially in the background so the client receives success feedback much faster.
 
-### 2025-11-11 — Journals 列表改为服务端拉取（兼容 RLS）
+### 2025-11-11 — Journals list switched to server-side fetching (RLS-safe)
 
-- **问题**：Dashboard Journals 之前直接在浏览器端使用匿名 Supabase 客户端 (`createClient`) 拉取 `daily_summaries`/`transcripts`。启用 RLS 后，匿名请求没有 `auth.uid()`，Supabase 会返回空数组，导致页面永远显示 “No journal entries found”。短期内只能通过禁用 RLS 来恢复数据，存在明显安全缺口。
-- **改动**：
-  - 新增 `/api/journals/list`（`src/app/api/journals/list/route.ts`），统一在服务器端用 `createAdminClient` + `getJournalsWithSummaries` 查询，并且沿用同源校验、防 CSRF 逻辑。
-  - `JournalListPage`（`src/features/journals/components/journal-list-page.tsx`）改为走上述 API，保留原有的筛选、分页、loading UI。
-  - API 响应格式 `{ data, totalCount }` 与旧逻辑一致，前端状态管理无感知。
-- **结果**：可以重新启用 `daily_summaries`、`period_reflections` 等表的 RLS，同时 Journals 端点正常显示数据；也为后续引入速率限制/缓存提供了统一入口。
-- 参考：src/app/api/transcribe/route.ts
+- **Issue**: Dashboard Journals previously used an anonymous Supabase client in the browser (`createClient`) to fetch `daily_summaries`/`transcripts`. After RLS was enabled, these unauthenticated requests had no `auth.uid()`, so Supabase returned empty arrays and the page always showed “No journal entries found”. The only short‑term workaround was to disable RLS, which left a clear security gap.
+- **Changes**:
+  - Added `/api/journals/list` (`src/app/api/journals/list/route.ts`), which centralizes all list queries on the server using `createAdminClient` + `getJournalsWithSummaries` and reuses the same origin checks / CSRF protection.
+  - Updated `JournalListPage` (`src/features/journals/components/journal-list-page.tsx`) to call this API instead, while keeping the existing filters, pagination, and loading UI unchanged.
+  - Kept the API response shape `{ data, totalCount }` identical to the previous implementation so state management on the client side did not need to change.
+- **Result**: We can safely re‑enable RLS on `daily_summaries`, `period_reflections`, and related tables while Journals continues to render data correctly. This endpoint also becomes the unified entry point for future rate limiting and caching.
+- **Reference**: `src/app/api/transcribe/route.ts`
 ```ts
 // kick off in background (non-blocking)
 (async () => {
@@ -217,11 +217,11 @@ Allows light editing of a week/month card; sets edited=true.
   }
 })();
 ```
-- 手动生成日总结接口也改为“同步返回 summary，Echos 同步后台触发”。
+- The manual “generate daily summary” endpoint was also changed to return the summary synchronously while triggering the Echos sync in the background.
 
-2) 周/月周期边界改为“本地时区日界”
-- 修复原来 UTC 导致“11 月内容显示成 10 月卡片”的问题。
-- 参考：src/lib/reflections/aggregate.ts
+2) Weekly/monthly period boundaries aligned to the LOCAL timezone day boundary
+- Fixes the earlier UTC bug where November content sometimes appeared on October cards.
+- Reference: `src/lib/reflections/aggregate.ts`
 ```ts
 // local YYYY-MM-DD
 export const localYmd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -240,9 +240,9 @@ export const getPeriodBounds = (mode, anchorDate) => {
 };
 ```
 
-3) 模型 JSON 解析与超限裁剪
-- 兼容 content 为空/分片数组，parse 前先拼接文本；对超限字段软裁剪再做 zod 校验，避免 ZodError。
-- 参考：src/lib/reflections/generator.ts
+3) Model JSON parsing and soft truncation
+- Handles `content` being empty or returned as a chunked array by concatenating text before parsing; applies soft truncation to oversized fields before zod validation to avoid `ZodError`.
+- Reference: `src/lib/reflections/generator.ts`
 ```ts
 const raw = completion.choices[0]?.message?.content as any;
 const text = Array.isArray(raw) ? raw.map(c => c?.text ?? '').join('') : (raw ?? '');
@@ -253,9 +253,9 @@ if (obj.stats && Array.isArray(obj.stats.keywords)) obj.stats.keywords = obj.sta
 const parsed = reflectionAISchema.parse(obj);
 ```
 
-4) 刷新锚点逻辑优化
-- 在 Echos 页（Week/Month）点击“Refresh current period”时，如果顶部卡片不是“进行中”，则以内“今天”为锚点生成当期卡，避免继续刷新历史月份。
-- 参考：src/features/echos/components/echos-board.tsx
+4) Refresh anchor logic improvements
+- On the Echos page (Week/Month), when the user clicks “Refresh current period” and the top card is not the in‑progress period, use “today” as the anchor date to generate the current‑period card instead of repeatedly refreshing historical periods.
+- Reference: `src/features/echos/components/echos-board.tsx`
 ```ts
 const todayISO = new Date().toISOString().split('T')[0];
 const effectiveAnchor = mode === 'daily'
@@ -264,8 +264,8 @@ const effectiveAnchor = mode === 'daily'
 await fetch('/api/reflections/sync', { body: JSON.stringify({ mode, anchorDate: effectiveAnchor }) });
 ```
 
-5) 历史错误数据清理
-- 由于早期 UTC 边界问题，period_reflections 中可能存在“10/31 开头”的月卡但包含 11 月内容。建议按 Troubleshooting 文档的 Recovery Steps 进行只读核对与精确删除，再刷新生成当期卡。
+5) Cleaning up historical erroneous data
+- Due to early UTC boundary issues, `period_reflections` may contain “October 31 start” monthly cards that actually include November content. Follow the Recovery Steps in the Troubleshooting document to review these rows in read‑only mode, delete them precisely, and then regenerate the current period card.
 
 ### Period Windows & Timezone
 

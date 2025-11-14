@@ -2,41 +2,41 @@
 
 ## 1. Overview
 - **Module**: Voice-native AI Companion (Echo)
-- **Goal**: 提供 Siri-like 语音体验，用户按下悬浮球即可与 Echo 对话，Echo 能读取结构化日记数据并给出情绪支持。
-- **Scope**: 临时密钥颁发、WebRTC Realtime 会话、工具调用(`fetch_user_context`、`web_search`)、push-to-talk UI。
+- **Goal**: Provide a Siri-like voice experience where the user can tap the floating button to talk to Echo, and Echo can read structured journal data to provide emotional support.
+- **Scope**: Ephemeral token issuance, WebRTC Realtime sessions, tool calls (`fetch_user_context`, `web_search`), and the push‑to‑talk UI.
 
 ## 2. Architecture & Flow
 ### 2.1 Component Stack
-| 层级 | 位置 | 说明 |
+| Layer | Location | Notes |
 | --- | --- | --- |
-| API (token) | `src/app/api/agent/token/route.ts` | 使用 OpenAI SDK 生成 Realtime session 并返回 `ek_...` 临时密钥。 |
-| API (tools) | `src/app/api/agent/tools/{context,search}` | Echo 的 function tool 落地实现。 |
-| Hook | `src/hooks/use-voice-agent.ts` | 管理 RealtimeSession、push-to-talk、工具注册。 |
-| UI | `src/components/agent/*` | 全站可见悬浮球 + 控制面板。 |
+| API (token) | `src/app/api/agent/token/route.ts` | Uses the OpenAI SDK to create a Realtime session and returns an `ek_...` ephemeral client secret. |
+| API (tools) | `src/app/api/agent/tools/{context,search}` | Concrete implementations of Echo’s function tools. |
+| Hook | `src/hooks/use-voice-agent.ts` | Manages the `RealtimeSession`, push‑to‑talk state, and tool registration. |
+| UI | `src/components/agent/*` | Floating “Echo” entrypoint and control panel that is visible across the app. |
 
 ### 2.2 Data & Tools
-- **结构化数据**来自 Supabase：`daily_summaries`、`daily_question`、`period_reflections`。
-- **工具**：
-  - `fetch_user_context` → `/api/agent/tools/context` → `fetchUserContext()`。
-  - `web_search` → `/api/agent/tools/search` → OpenAI Responses + `web_search` 工具，带每日 5 次限额。
+- **Structured data** comes from Supabase: `daily_summaries`, `daily_question`, and `period_reflections`.
+- **Tools**:
+  - `fetch_user_context` → `/api/agent/tools/context` → `fetchUserContext()` to retrieve summaries, mood, and reflections.
+  - `web_search` → `/api/agent/tools/search` → OpenAI Responses with the `web_search` tool, with a daily quota of 5 calls.
 
 ### 2.3 Interaction Flow
-1. UI 打开面板 → `connect()` 请求 `/api/agent/token?voice=<id>`。
-2. 后端调用 `openai.beta.realtime.sessions.create({ model })`，返回 `session.client_secret.value`。
-3. 前端创建 `RealtimeAgent` + `RealtimeSession`，`connect({ apiKey: token, url: https://api.openai.com/v1/realtime?model=... })`。
-4. Echo 发起 `tool_call` → 前端执行 fetch → 返回结果 → SDK 自动继续对话。
-5. Push-to-talk 通过 `session.mute` 控制录音，10 分钟计时器超时自动断开。
+1. The UI opens the panel → `connect()` requests `/api/agent/token?voice=<id>`.
+2. The backend calls `openai.beta.realtime.sessions.create({ model })` and returns `session.client_secret.value`.
+3. The frontend creates a `RealtimeAgent` + `RealtimeSession`, then calls `connect({ apiKey: token, url: https://api.openai.com/v1/realtime?model=... })`.
+4. Echo issues a `tool_call` → the frontend executes `fetch` → returns the result → the SDK continues the conversation automatically.
+5. Push‑to‑talk toggles recording via `session.mute`, and a 10‑minute guard timer disconnects the session when it expires.
 
 ## 3. Implementation Highlights
-### 3.1 临时密钥 & Auth
+### 3.1 Ephemeral token & auth
 ```ts
 // src/app/api/agent/token/route.ts
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const session = await openai.beta.realtime.sessions.create({ model: REALTIME_MODEL });
 return NextResponse.json({ token: session.client_secret.value, model: REALTIME_MODEL, voice: voiceProfile.voice });
 ```
-- 保持最简请求体，只传 `model`。
-- voice 仅用于 UI 展示；真正生效的 voice 由 RealtimeAgent 指定。
+- Keep the request body minimal and only send `model`.
+- The `voice` in the token response is for UI display only; the effective voice is set by `RealtimeAgent`.
 
 ### 3.2 Realtime Hook
 ```ts
@@ -70,31 +70,31 @@ await session.connect({
   url: `https://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`
 });
 ```
-- 降级到旧版 SDK 后需要显式设置 `url`，否则可能命中默认 `/v1/realtime/calls` 导致 SDP 解析失败。
-- push-to-talk 通过 `session.mute(true/false)` 控制录音；`session.on('audio_start'|'audio_stopped')` 更新 UI。
+- After downgrading to the older SDK, we must explicitly set `url`; otherwise the client may hit the default `/v1/realtime/calls` endpoint and fail to parse the SDP.
+- Push‑to‑talk is controlled via `session.mute(true/false)`, and `session.on('audio_start'|'audio_stopped')` is used to keep the UI in sync.
 
-### 3.3 工具端点
-- `/api/agent/tools/context` 调 `fetchUserContext()`，返回 summaries/mood/reflections。
-- `/api/agent/tools/search` 调用 `openai.responses.create({ tools: [{ type: 'web_search' }] })`，附带每日 5 次限额（`search-quota.ts`）。
-- 两个端点均用 Clerk auth + Supabase admin client，限制为当前用户。
+### 3.3 Tool endpoints
+- `/api/agent/tools/context` calls `fetchUserContext()` and returns summaries/mood/reflections.
+- `/api/agent/tools/search` calls `openai.responses.create({ tools: [{ type: 'web_search' }] })` with a per‑day quota enforced in `search-quota.ts`.
+- Both endpoints use Clerk auth plus the Supabase admin client, and are always scoped to the current user.
 
 ## 4. Debug Log & Lessons Learned
-| 问题 | 原因 | 解决 |
+| Issue | Cause | Fix |
 | --- | --- | --- |
-| `Unknown parameter: 'session.voice'` / `'model'` | 直接调用 `client_secrets` 并传入不被接受的字段。 | 改用 SDK `sessions.create({ model })`，只传 `model`。 |
-| `Unknown parameter: 'session.type'` | `@openai/agents-realtime@0.3.x` 在 `session.update` 中包含已弃用字段。 | 将 `@openai/agents(-realtime)`、`openai` 降级到 0.0.10 / 5.8.2（与 sample 对齐）。 |
-| `Failed to parse SessionDescription. { Expect line: v= }` | `connect()` 未指定 URL，返回 JSON 错误。 | `connect({ apiKey, url: 'https://api.openai.com/v1/realtime?model=...' })`。 |
-| Zod: `.optional()` without `.nullable()` | 旧 SDK 需要 optional+nullable。 | schema 使用 `nullable().optional()`，并在执行前删除 null 字段。 |
-| Tool 422 `Expected object, received null` | payload 中包含 `range: null`。 | 发送前删除 null 字段。 |
-| `getInitialSessionConfig is not a function` | 0.0.10 SDK 无此 API。 | 移除调试调用。 |
-| `today`/`recent` 错位（返回前一天数据） | 统一时区在 UTC->local 截断时产生偏差，`scope === 'today'` 仍按 `start.slice(0,10)` 过滤。 | 当 scope 为 today 时改用 `eq('date', anchorDate)`；同时在系统 prompt 中插入“当前日期/时区”以便 Echo 做 date reasoning。 |
-| Echo 无法正确理解 “上周”“昨天” | 模型不知道“当前日期”和“用户时区”，会将 `scope` 填错。 | 在 `buildVoiceAgentInstructions()` 中追加 `Today is ${anchorDate} (Australia/Sydney).`，并在工具文档中说明如何设置 `anchorDate` / `range`。 |
-| 面板关闭后 session 仍运行导致超时 | Dialog 关闭时没有调用 `disconnect()`，会话继续运行直至超时报错。 | 在 `VoiceAgentPanel` 的 `onOpenChange` 中拦截关闭事件，若 session 仍 active 则立即 `disconnect()`。 |
+| `Unknown parameter: 'session.voice'` / `'model'` | Called the `client_secrets` endpoint directly and sent unsupported fields. | Switch to `sessions.create({ model })` via the SDK and only send `model`. |
+| `Unknown parameter: 'session.type'` | `@openai/agents-realtime@0.3.x` included deprecated fields in the `session.update` payload. | Pin `@openai/agents(-realtime)` and `openai` to 0.0.10 / 5.8.2 to match the sample. |
+| `Failed to parse SessionDescription. { Expect line: v= }` | `connect()` was called without a URL, so the API returned JSON instead of SDP. | Call `connect({ apiKey, url: 'https://api.openai.com/v1/realtime?model=...' })`. |
+| Zod: `.optional()` without `.nullable()` | The older SDK requires optional fields to also allow `null`. | Use `nullable().optional()` in schemas and strip `null` fields from the payload before sending. |
+| Tool 422 `Expected object, received null` | The payload contained `range: null`. | Remove any `null` fields before sending the tool payload. |
+| `getInitialSessionConfig is not a function` | The 0.0.10 SDK does not expose this helper. | Remove the debug call entirely. |
+| `today` / `recent` off by one day | Using a unified timezone but still filtering `scope === 'today'` via `start.slice(0,10)` (UTC) introduced an off‑by‑one error. | When `scope` is `today`, filter by `eq('date', anchorDate)` instead, and inject “Today is ${anchorDate} (Australia/Sydney).” into the system prompt to help the model reason about dates. |
+| Echo mis‑interprets “last week” / “yesterday” | The model did not know the “current date” or user timezone, so it filled `scope` incorrectly. | Extend `buildVoiceAgentInstructions()` with `Today is ${anchorDate} (Australia/Sydney).` and document how to set `anchorDate` / `range` in tools. |
+| Session keeps running after closing the panel and times out | The dialog closed without calling `disconnect()`, so the session stayed active until the 10‑minute timeout. | In `VoiceAgentPanel`’s `onOpenChange`, intercept `nextOpen === false` and immediately call `disconnect()` when the session is still active. |
 
 ### 4.1 Date & Time Reasoning Notes
-- **症状**：`scope: today` 时返回了 11/09 与 11/10 的 summary；`recent` anchorDate 也落后 1 天，Echo 回答 “上周” 时直接复述本周内容。
-- **分析**：`getLocalDayRange()` 默认使用 `Australia/Sydney`，但我们在 “today” 查询中仍使用 `start.slice(0,10)`（UTC）过滤 `daily_summaries`。悉尼 11/11 的 UTC 起点是 11/10T13:00Z，因此 SQL 变成 `date >= '2025-11-10'`。
-- **修复**：
+- **Symptoms**: With `scope: today`, the API returned summaries for 11/09 and 11/10; the `recent` anchorDate also lagged by one day, and Echo answered “last week” by summarising the current week.
+- **Analysis**: `getLocalDayRange()` defaults to `Australia/Sydney`, but the “today” query still used `start.slice(0,10)` (UTC) to filter `daily_summaries`. For Sydney on 11/11, the UTC start is 11/10T13:00Z, so the SQL became `date >= '2025-11-10'`.
+- **Fix**:
   ```ts
   if (payload.scope === 'today') {
     const { data } = await client
@@ -103,18 +103,18 @@ await session.connect({
       .eq('date', anchor); // anchor = getLocalDayRange().date
   }
   ```
-  同时在系统提示里注入 `Today is ${anchor} (Australia/Sydney).`，让模型在调用工具时能算对 `anchorDate` 与 `range`。
-- **结果**：`scope: today` 只返回 11/11 记录，`recent` anchorDate 对齐当前日期，Echo 在回答 “上周/昨天” 时会主动设置工具参数。
+  At the same time, inject `Today is ${anchor} (Australia/Sydney).` into the system prompt so the model can correctly infer `anchorDate` and `range` when calling tools.
+- **Result**: `scope: today` now only returns 11/11 rows; `recent`’s anchorDate is aligned with the current local date, and Echo correctly sets tool parameters when answering “last week / yesterday”.
 
 ## 5. Current Status (2025-11-10)
-- ✅ 临时密钥颁发 / WebRTC 连接 / push-to-talk 完整可用。
-- ✅ Echo 可读取结构化日记（若数据库有数据）并调用搜索。
-- ✅ UI 支持 7 种 voice profile，移动端悬浮球吸附。
-- ⚠ 数据若为空，Echo 会返回空数组，需要后续在工具层做提示或 Seed 数据。
+- ✅ Ephemeral token issuance, WebRTC connection, and push‑to‑talk are fully wired up.
+- ✅ Echo can read structured journal data (when present in the database) and invoke search tools.
+- ✅ The UI supports seven voice profiles, with a floating button that snaps to mobile edges.
+- ⚠ When there is no data, Echo currently returns empty arrays; the tool layer should later add more helpful messaging or seed data.
 
 ## 6. Next Steps
-1. 丰富工具语义：自动识别“昨天”“本周”等 scope → range。
-2. 为 `/api/agent/tools/context` 添加 mock/seed 数据，便于展示。
-3. 关注官方 SDK 更新（修复 `session.type`），未来再升级。
-4. 进一步记录用户对话日志（匿名化）以便调试 Echo 行为。
-- ✅ 关闭面板/跳转页面时自动断开 Realtime session，避免后台超时。
+1. Enrich tool semantics so the agent can automatically map phrases like “yesterday” or “this week” into `{ scope, anchorDate, range }`.
+2. Add mock/seed data for `/api/agent/tools/context` so demos remain meaningful even on fresh accounts.
+3. Track upstream SDK updates (especially fixes for `session.type`) and plan a future upgrade.
+4. Capture additional (anonymised) conversation logs for debugging Echo’s behaviour.
+- ✅ Already done: automatically disconnect the Realtime session when closing the panel or navigating away to avoid background timeouts.

@@ -242,60 +242,60 @@ Dashboard / Journals (Journal Overview Page)
 
 ## Module B: Echos (Reflections)
 
-Echos 以固定周期（Daily、Weekly、Monthly）生成结构化的反思卡片，来源于 `daily_summaries`、`daily_question` 与当日/当期的转写内容。每张卡包括：
-- Achievements（≤3）
-- Commitments（≤3）
-- Mood（overall + reason）
-- Flashback（一句 Hook）
+Echos generates structured reflection cards on fixed periods (Daily, Weekly, Monthly), using data from `daily_summaries`, `daily_question`, and the transcripts for the current day/period. Each card includes:
+- Achievements (≤ 3)
+- Commitments (≤ 3)
+- Mood (overall + reason)
+- Flashback (single‑sentence hook)
 
-### 数据模型
-- 日粒度：复用 `daily_summaries`，扩展字段：`achievements[]`、`commitments[]`、`mood_overall`、`mood_reason`、`flashback`、`stats(jsonb)`、`edited(bool)`、`gen_version`、`last_generated_at`。
-- 周/月粒度：`period_reflections`（`user_id`、`period_type('weekly'|'monthly')`、`period_start`、`period_end`、同上字段、`UNIQUE(user_id,period_type,period_start)`）。
+### Data model
+- Daily granularity: reuse `daily_summaries` and extend it with fields `achievements[]`, `commitments[]`, `mood_overall`, `mood_reason`, `flashback`, `stats (jsonb)`, `edited (bool)`, `gen_version`, and `last_generated_at`.
+- Weekly/monthly granularity: `period_reflections` with fields `user_id`, `period_type ('weekly' | 'monthly')`, `period_start`, `period_end`, the same reflection fields as above, and `UNIQUE(user_id, period_type, period_start)`.
 
-### 生成与编辑
-- 触发：`POST /api/reflections/sync`，参数 `{ mode: 'daily'|'weekly'|'monthly', anchorDate?: 'YYYY-MM-DD' }`。
-  - Day：以 anchorDate（默认今天）更新当日 `daily_summaries` 的结构化反思；每天最多一次成功写入。
-  - Week/Month：只对“进行中”周/月卡 upsert；历史周期保持稳定。
-- 列表读取：`GET /api/reflections/daily|weekly|monthly`（limit/pagination）。
-- 轻量编辑：`PATCH /api/reflections/daily/:date`、`PATCH /api/reflections/period/:id`，设置 `edited=true`，后续再生不覆盖已编辑字段。
+### Generation & editing
+- Trigger: `POST /api/reflections/sync` with `{ mode: 'daily'|'weekly'|'monthly', anchorDate?: 'YYYY-MM-DD' }`.
+  - Day: upserts the structured reflection in `daily_summaries` for `anchorDate` (defaults to “today”); at most one successful write per day.
+  - Week/Month: only upserts cards for the “in‑progress” week/month; historical periods remain stable.
+- List endpoints: `GET /api/reflections/daily|weekly|monthly` with limit/pagination.
+- Light editing: `PATCH /api/reflections/daily/:date` and `PATCH /api/reflections/period/:id` set `edited=true` so future regenerations do not overwrite edited fields.
 
-### 时区与周期边界
-- 所有“周期边界”（周一..周日、本月）按“本地时区”计算，period_start/period_end 用本地 YYYY-MM-DD（不再使用 UTC 字符串日界），避免 11 月卡显示为 10 月。
+### Timezone & period boundaries
+- All period windows (Monday..Sunday for weeks, and calendar months) are computed in the **local timezone**. `period_start`/`period_end` are stored as local `YYYY-MM-DD` (no longer UTC date strings) to avoid cases like “November content showing up on an October card”.
 
-### 性能与交互
-- 异步化：录音保存后，`/api/transcribe` 立即返回；“生成日总结 + Echos 同步”在后台顺序执行。手动 `POST /api/generate-daily-summary` 同步返回 summary，但 Echos 同步改为后台触发。
-- Echos 页面（`/dashboard/echos`）：分段切换（Day/Week/Month），卡片展示与 Generate/Refresh/Edit 动作；刷新当前周/月时，若当前顶部卡片非“进行中”，则以“今天”为锚点生成当期卡。
+### Performance & interaction
+- Asynchronous pipeline: after recording is saved, `/api/transcribe` returns immediately; “generate daily summary + Echos sync” runs sequentially in the background. The manual `POST /api/generate-daily-summary` returns the summary synchronously but triggers Echos sync asynchronously.
+- Echos page (`/dashboard/echos`): segmented controls (Day/Week/Month) with cards that support Generate/Refresh/Edit actions. When refreshing the current week/month, if the top card is not the in‑progress period, the system uses “today” as the anchor date to generate the current period card.
 
-### 约束与校验
-- 模型返回 JSON 解析前做“软修正”：`achievements/commitments` 最多 3 项、`stats.keywords` 最多 8 项，随后再做 zod 校验；解析失败记录原文并抛错。
+### Constraints & validation
+- Before parsing model JSON, apply “soft correction”: cap `achievements/commitments` at 3 items and `stats.keywords` at 8 items, then run zod validation; if parsing still fails, log the raw content and raise an error.
 
-### 未来演进
-- 迁移至 Responses API（GPT‑5）与更强鲁棒性解析；版本化 prompt；历史周期再生策略；更丰富可视化与趋势。
+### Future evolution
+- Migrate to the Responses API (GPT‑5) with more robust parsing, version prompts, add strategies for regenerating historical periods, and ship richer visualizations and trends.
 
 ## Module C: AI voice companion
 
-**goal** 用户的私人日记伴侣，提供自然的语音交互体验；当用户询问过往事件/情绪/主题/目标时，Agent 通过“上下文工具”从关系型数据中精确检索所需信息（非向量 RAG）。
+**goal** A private diary companion that provides natural voice interactions; when the user asks about past events, moods, themes, or goals, the agent uses a “context tool” to retrieve precise information from relational data (no vector RAG).
 
-**user story** 我希望用语音与 AI 小助手对话，回顾并复盘日记内容；助手能基于我说的“时间范围/周期/关键词”自动转换成明确的查询参数并检索我的数据，然后以我偏好的语气给予情绪价值与反思支持。
+**user story** As a user, I want to speak with an AI assistant to review and reflect on my journal; when I mention time ranges/periods/keywords, the assistant should translate them into explicit query parameters, fetch my data, and respond in my preferred tone with emotional support and reflective prompts.
 
 **basic features**
-1. 语音交互 Agent（Echo）：工具集包括（1）`fetch_user_context`（关系型精确检索），（2）`web_search`（外部信息）。
-2. 多种 voice profile：冷静平和男/女、温柔细腻男/女、活泼可爱男/女、节日声线等。
-3. 全局入口：AI 风格悬浮球，登录后随处可用；Echos 页面也提供统一入口。
-4. （可选）文字实时渲染最近一轮 AI 回复。
+1. Voice interaction agent (Echo) with tools: (1) `fetch_user_context` for precise relational queries, and (2) `web_search` for external information.
+2. Multiple voice profiles: calm/neutral male/female, gentle/soothing, playful/energetic, and seasonal voices.
+3. Global entrypoint: an AI-style floating button that is available everywhere after login; the Echos page also provides a dedicated entry.
+4. (Optional) Text rendering of the most recent AI reply in real time.
 
-**design decisions**（Module C 不使用 RAG）
-- 采用显式“时间范围参数化”的上下文工具以提升检索“精准度、可解释性、稳定性”，避免不必要的向量召回成本与延迟；未来如需“模糊回忆”再评估 RAG。
-- 数据来源为 `daily_summaries`、`daily_question`、`period_reflections` 等关系表；工具会把“昨天/上周/某段区间”映射为 `{ scope, anchorDate, range }`。
-- `web_search` 有日额度限制，用于显式外部知识补充。
+**design decisions** (Module C does not use RAG)
+- Use an explicit “time range parameterization” context tool to improve precision, interpretability, and stability, avoiding unnecessary vector recalls and latency; if we later need “fuzzy memory”, we can re‑evaluate RAG.
+- Data comes from relational tables such as `daily_summaries`, `daily_question`, and `period_reflections`; the tool maps phrases like “yesterday / last week / a certain period” into `{ scope, anchorDate, range }`.
+- `web_search` has a daily quota and is only used when the user explicitly asks for external knowledge.
 
 **sample user workflow**
-activate agent → agent 问候并声明本地日期 → 用户发问（语音）→ agent 根据语义先调用 `fetch_user_context`（必要时）→ 生成并播放语音回复。
+Activate the agent → the agent greets the user and states the local date → the user asks a question by voice → the agent, if needed, first calls `fetch_user_context` based on the semantics → then generates and plays back a voice reply.
 
-**overall expectation** 类 Siri 的语音体验：点击悬浮球即刻进入 push‑to‑talk，会话最长 10 分钟，支持快速中断与继续。
+**overall expectation** A Siri‑like voice experience: tapping the floating button immediately enters push‑to‑talk mode, with sessions up to 10 minutes and support for quick interruption/resume.
 
 **current progress (2025-11-10)**
-- ✅ 浏览器端 push‑to‑talk 已打通：悬浮球入口、voice profile 切换、10 分钟会话守护。
-- ✅ Echo 可实时调用 `fetch_user_context`（Supabase 关系检索）与 `web_search` 工具，并播放语音回复。
-- ✅ 临时密钥颁发与 WebRTC 连接均采用 OpenAI Agents SDK（Realtime）。
-- ⏳ 下一步：增强工具语义（日期范围推断）、补充示例数据、升级到最新 SDK 并回归测试。
+- ✅ Browser push‑to‑talk is wired up: floating entrypoint, voice profile switching, and a 10‑minute session guard.
+- ✅ Echo can call `fetch_user_context` (Supabase relational queries) and `web_search` in real time and play voice responses.
+- ✅ Ephemeral token issuance and WebRTC connectivity are implemented via the OpenAI Agents SDK (Realtime).
+- ⏳ Next: improve tool semantics (date range inference), add example data, upgrade to the latest SDK, and run regression tests.
