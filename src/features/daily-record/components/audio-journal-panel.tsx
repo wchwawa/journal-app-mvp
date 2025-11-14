@@ -10,11 +10,13 @@ import {
   Play,
   Pause,
   RotateCcw,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import LiveWaveform from './live-waveform';
 import RecordedWaveform from './recorded-waveform';
+import { toast } from 'sonner';
 
 interface AudioJournalPanelProps {
   className?: string;
@@ -305,6 +307,9 @@ export default function AudioJournalPanel({
       setTranscription(result.transcription);
       setSummary(result.rephrasedText);
       setProcessingState('complete');
+      toast.success('Smart journal organization complete', {
+        description: 'Transcript saved and synced.'
+      });
 
       // Dispatch event to notify other components
       const event = new CustomEvent('audioJournalUpdated');
@@ -313,6 +318,9 @@ export default function AudioJournalPanel({
       console.error('Error processing audio:', err);
       setError('Failed to process audio. Please try again.');
       setProcessingState('error');
+      toast.error('Processing failed', {
+        description: 'Unable to process audio. Please try again.'
+      });
     }
   };
 
@@ -579,40 +587,21 @@ export default function AudioJournalPanel({
 
         {/* Error Display */}
         {error && (
-          <div className='bg-destructive/10 border-destructive/20 rounded-lg border p-4'>
-            <div className='text-destructive text-center text-sm'>{error}</div>
+          <div className='bg-destructive/10 border-destructive/20 text-destructive flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm'>
+            <div className='flex-1 text-left'>{error}</div>
+            <button
+              type='button'
+              onClick={() => setError(null)}
+              aria-label='Dismiss error'
+              className='text-destructive/80 hover:text-destructive focus-visible:ring-destructive/40 rounded-full p-1 focus-visible:ring-2 focus-visible:outline-none'
+            >
+              <X className='h-4 w-4' />
+            </button>
           </div>
         )}
 
         {/* Results Display */}
-        {isComplete && (
-          <div className='border-border/40 border-t pt-4'>
-            <div className='rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-medium text-green-800 dark:bg-green-900/20 dark:text-green-200'>
-              Smart journal organization complete.
-            </div>
-            <div className='pt-4 text-center'>
-              <div className='flex justify-center gap-2'>
-                <Button
-                  onClick={resetState}
-                  variant='outline'
-                  size='sm'
-                  className='rounded-full'
-                >
-                  Record Another
-                </Button>
-                <Button
-                  onClick={discardRecording}
-                  variant='outline'
-                  size='sm'
-                  className='rounded-full border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50'
-                >
-                  <Trash2 className='mr-2 h-4 w-4' />
-                  Clear
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        {isComplete ? null : null}
       </div>
     </div>
   );
