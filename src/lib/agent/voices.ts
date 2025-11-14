@@ -28,25 +28,25 @@ export const VOICE_PROFILES: VoiceProfile[] = [
     id: 'tender-female',
     label: 'Tender & Warm (Female)',
     description: 'Light, soothing tone ideal for reflective guidance.',
-    voice: 'lily'
+    voice: 'coral'
   },
   {
     id: 'lively-male',
     label: 'Lively & Curious (Male)',
     description: 'Playful energy with quick cadence for upbeat chats.',
-    voice: 'adam'
+    voice: 'marin'
   },
   {
     id: 'lively-female',
     label: 'Lively & Curious (Female)',
     description: 'Bright and optimistic, great for pep talks.',
-    voice: 'aria'
+    voice: 'shimmer'
   },
   {
     id: 'holiday-santa',
     label: 'Festive (Santa)',
     description: 'Seasonal, joyful presence with a cozy chuckle.',
-    voice: 'ember'
+    voice: 'cedar'
   }
 ];
 

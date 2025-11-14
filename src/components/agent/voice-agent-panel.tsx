@@ -85,17 +85,6 @@ export default function VoiceAgentPanel({
         </DialogHeader>
 
         <div className='space-y-4'>
-          <div className='rounded-xl border p-3'>
-            <div className='flex items-center justify-between text-sm font-semibold'>
-              <span>Timer</span>
-              <span>{Math.ceil(state.timeRemaining)}s</span>
-            </div>
-            <Progress value={timePercent} className='mt-2 h-1.5' />
-            <p className='text-muted-foreground mt-1 text-[11px]'>
-              Session cap: 10 min
-            </p>
-          </div>
-
           <div className='flex flex-wrap items-center gap-2'>
             <Button
               variant={state.status === 'ready' ? 'destructive' : 'default'}
@@ -111,9 +100,6 @@ export default function VoiceAgentPanel({
                 ? 'Live'
                 : state.status.charAt(0).toUpperCase() + state.status.slice(1)}
             </Badge>
-            <span className='text-muted-foreground text-xs'>
-              {statusCopy[state.status]}
-            </span>
             <Button
               variant='ghost'
               size='sm'
@@ -122,6 +108,17 @@ export default function VoiceAgentPanel({
             >
               {state.searchRemaining} web searches left today
             </Button>
+          </div>
+
+          <div className='rounded-xl border p-3'>
+            <div className='flex items-center justify-between text-sm font-semibold'>
+              <span>Timer</span>
+              <span>{Math.ceil(state.timeRemaining)}s</span>
+            </div>
+            <Progress value={timePercent} className='mt-2 h-1.5' />
+            <p className='text-muted-foreground mt-1 text-[11px]'>
+              Session cap: 10 min
+            </p>
           </div>
 
           <div className='rounded-2xl border p-4 text-center'>
