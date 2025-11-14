@@ -70,6 +70,7 @@ export async function PUT(
       .single();
 
     if (updateError) {
+      // eslint-disable-next-line no-console
       console.error('Error updating transcript:', updateError);
       return NextResponse.json(
         { error: 'Failed to update journal entry' },
@@ -89,6 +90,7 @@ export async function PUT(
       },
       body: JSON.stringify({ date: entryDate })
     }).catch((error) => {
+      // eslint-disable-next-line no-console
       console.error('Failed to trigger daily summary regeneration:', error);
     });
 
@@ -97,6 +99,7 @@ export async function PUT(
       transcript
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Error updating journal entry:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -156,6 +159,7 @@ export async function DELETE(
       .eq('user_id', userId);
 
     if (transcriptDeleteError) {
+      // eslint-disable-next-line no-console
       console.error('Error deleting transcript:', transcriptDeleteError);
       return NextResponse.json(
         { error: 'Failed to delete transcript' },
@@ -169,6 +173,7 @@ export async function DELETE(
       .remove([audioFile.storage_path]);
 
     if (storageDeleteError) {
+      // eslint-disable-next-line no-console
       console.error(
         'Error deleting audio file from storage:',
         storageDeleteError
@@ -184,6 +189,7 @@ export async function DELETE(
       .eq('user_id', userId);
 
     if (audioDeleteError) {
+      // eslint-disable-next-line no-console
       console.error('Error deleting audio file record:', audioDeleteError);
       return NextResponse.json(
         { error: 'Failed to delete journal entry' },
@@ -203,6 +209,7 @@ export async function DELETE(
       },
       body: JSON.stringify({ date: entryDate })
     }).catch((error) => {
+      // eslint-disable-next-line no-console
       console.error('Failed to trigger daily summary regeneration:', error);
     });
 
@@ -211,6 +218,7 @@ export async function DELETE(
       message: 'Journal entry deleted successfully'
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Error deleting journal entry:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

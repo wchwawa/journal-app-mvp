@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // eslint-disable-next-line no-console
     console.error('Search tool error', error);
     return NextResponse.json(
       { error: 'Failed to run search' },

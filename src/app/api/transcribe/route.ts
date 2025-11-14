@@ -32,10 +32,6 @@ async function generateDailySummary(
     end: dayEnd
   } = getLocalDayRange();
 
-  console.log(
-    `Generating daily summary for user ${userId} on date ${currentDate}`
-  );
-
   // Step 1: Get all transcripts for today
   const { data: transcripts, error: transcriptsError } = await supabase
     .from('transcripts')
@@ -56,12 +52,12 @@ async function generateDailySummary(
     .order('created_at', { ascending: true });
 
   if (transcriptsError) {
+    // eslint-disable-next-line no-console
     console.error('Error fetching transcripts for summary:', transcriptsError);
     throw transcriptsError;
   }
 
   if (!transcripts || transcripts.length === 0) {
-    console.log('No transcripts found for summary generation');
     return;
   }
 
@@ -75,6 +71,7 @@ async function generateDailySummary(
     .single();
 
   if (moodError && moodError.code !== 'PGRST116') {
+    // eslint-disable-next-line no-console
     console.error('Error fetching mood data for summary:', moodError);
   }
 
@@ -121,9 +118,6 @@ async function generateDailySummary(
   });
 
   const summary = summaryResponse.choices[0]?.message?.content || '';
-  console.log(
-    `Generated summary for ${transcripts.length} entries (chars: ${summary.length})`
-  );
 
   // Step 4: Upsert daily summary
   const { data: summaryData, error: summaryError } = await supabase
@@ -146,11 +140,10 @@ async function generateDailySummary(
     .single();
 
   if (summaryError) {
+    // eslint-disable-next-line no-console
     console.error('Error saving summary:', summaryError);
     throw summaryError;
   }
-
-  console.log('Daily summary generated successfully:', summaryData.id);
   return summaryData;
 }
 
@@ -195,10 +188,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(
-      `Processing audio file: ${audioFile.name}, size: ${audioFile.size} bytes`
-    );
-
     // Step 1: Transcribe audio with Whisper
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
@@ -212,10 +201,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    console.log(
-      `Transcription completed for user ${userId} (chars: ${transcription.length})`
-    );
 
     // Step 2: AI rephraser for rephrasing the transcription
     const summaryResponse = await openai.chat.completions.create({
@@ -247,9 +232,6 @@ export async function POST(request: NextRequest) {
     });
 
     const rephrasedText = summaryResponse.choices[0]?.message?.content || '';
-    console.log(
-      `Rephrased transcript generated for user ${userId} (chars: ${rephrasedText.length})`
-    );
 
     // Step 3: Store audio file in Supabase Storage
     const supabase = createAdminClient();
@@ -265,14 +247,13 @@ export async function POST(request: NextRequest) {
       });
 
     if (storageError) {
+      // eslint-disable-next-line no-console
       console.error('Storage error:', storageError);
       return NextResponse.json(
         { error: 'Failed to store audio file' },
         { status: 500 }
       );
     }
-
-    console.log('Audio stored at:', storageData.path);
 
     // Step 4: Save audio file metadata
     const { data: audioFileData, error: audioFileError } = await supabase
@@ -287,6 +268,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (audioFileError) {
+      // eslint-disable-next-line no-console
       console.error('Audio file DB error:', audioFileError);
       return NextResponse.json(
         { error: 'Failed to save audio metadata' },
@@ -308,6 +290,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (transcriptError) {
+      // eslint-disable-next-line no-console
       console.error('Transcript DB error:', transcriptError);
       return NextResponse.json(
         { error: 'Failed to save transcript' },
@@ -332,6 +315,7 @@ export async function POST(request: NextRequest) {
           });
         }
       } catch (summaryError) {
+        // eslint-disable-next-line no-console
         console.error('Background daily summary failed:', summaryError);
       }
     })();
@@ -345,6 +329,7 @@ export async function POST(request: NextRequest) {
       transcriptId: transcriptData.id
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Transcription error:', error);
 
     // Handle specific OpenAI errors

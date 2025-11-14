@@ -28,13 +28,6 @@ interface VoiceAgentPanelProps {
   agent: ReturnTypeUseVoiceAgent;
 }
 
-const statusCopy: Record<string, string> = {
-  idle: 'Tap start to begin',
-  connecting: 'Connecting...',
-  ready: 'Say anything when you press and hold',
-  error: 'Please restart session'
-};
-
 export default function VoiceAgentPanel({
   open,
   onOpenChange,

@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
 
   if (error) {
+    // eslint-disable-next-line no-console
     console.error('Failed to fetch daily reflections', error);
     return NextResponse.json(
       { error: 'Failed to fetch reflections' },

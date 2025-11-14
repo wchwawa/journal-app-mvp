@@ -44,6 +44,7 @@ export async function GET(
       .download(audioFile.storage_path);
 
     if (storageError || !audioData) {
+      // eslint-disable-next-line no-console
       console.error('Error downloading audio file:', storageError);
       return NextResponse.json(
         { error: 'Failed to retrieve audio file' },
@@ -65,6 +66,7 @@ export async function GET(
       }
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Error serving audio file:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
         { status: 422 }
       );
     }
+    // eslint-disable-next-line no-console
     console.error('Reflection sync error:', error);
     return NextResponse.json(
       { error: 'Failed to generate reflection' },

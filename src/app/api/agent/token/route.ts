@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
       voice: voiceProfile.voice
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Realtime token error', error);
     return NextResponse.json(
       { error: 'Unable to create realtime session' },

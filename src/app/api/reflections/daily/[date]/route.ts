@@ -45,6 +45,7 @@ export async function PATCH(
       if (existingError.code === 'PGRST116') {
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
+      // eslint-disable-next-line no-console
       console.error('Failed to fetch daily reflection', existingError);
       return NextResponse.json(
         { error: 'Failed to fetch reflection' },
@@ -86,6 +87,7 @@ export async function PATCH(
       .single();
 
     if (error) {
+      // eslint-disable-next-line no-console
       console.error('Failed to update daily reflection', error);
       return NextResponse.json(
         { error: 'Failed to update reflection' },
@@ -104,6 +106,7 @@ export async function PATCH(
         { status: 422 }
       );
     }
+    // eslint-disable-next-line no-console
     console.error('Daily reflection patch error', error);
     return NextResponse.json(
       { error: 'Failed to update reflection' },

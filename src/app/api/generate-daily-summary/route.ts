@@ -36,8 +36,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Generating daily summary for user ${userId} on date ${date}`);
-
     const supabase = createAdminClient();
     const { start: dayStart, end: dayEnd } = getUtcRangeForDate(date);
 
@@ -60,6 +58,7 @@ export async function POST(request: NextRequest) {
       .order('created_at', { ascending: true });
 
     if (transcriptsError) {
+      // eslint-disable-next-line no-console
       console.error('Error fetching transcripts:', transcriptsError);
       return NextResponse.json(
         { error: 'Failed to fetch transcripts' },
@@ -68,7 +67,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!transcripts || transcripts.length === 0) {
-      console.log('No transcripts found for this date');
       return NextResponse.json({
         success: true,
         message: 'No journal entries found for this date'
@@ -85,6 +83,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (moodError && moodError.code !== 'PGRST116') {
+      // eslint-disable-next-line no-console
       console.error('Error fetching mood data:', moodError);
     }
 
@@ -131,9 +130,6 @@ export async function POST(request: NextRequest) {
     });
 
     const summary = summaryResponse.choices[0]?.message?.content || '';
-    console.log(
-      `Generated summary for ${transcripts.length} entries on ${date} (chars: ${summary.length})`
-    );
 
     // Step 4: Upsert daily summary
     const { data: summaryData, error: summaryError } = await supabase
@@ -156,6 +152,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (summaryError) {
+      // eslint-disable-next-line no-console
       console.error('Error saving summary:', summaryError);
       return NextResponse.json(
         { error: 'Failed to save summary' },
@@ -173,6 +170,7 @@ export async function POST(request: NextRequest) {
           anchorDate: date
         });
       } catch (reflectionError) {
+        // eslint-disable-next-line no-console
         console.error('Background reflections sync failed:', reflectionError);
       }
     })();
@@ -185,6 +183,7 @@ export async function POST(request: NextRequest) {
       summaryId: summaryData.id
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Summary generation error:', error);
 
     // Handle specific OpenAI errors

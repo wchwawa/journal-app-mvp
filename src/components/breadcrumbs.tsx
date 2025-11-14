@@ -15,9 +15,9 @@ import { ChevronLeft } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
 export function Breadcrumbs() {
+  const pathname = usePathname();
   const items = useBreadcrumbs();
   if (items.length === 0) return null;
-  const pathname = usePathname();
   const parent = items.length > 1 ? items[items.length - 2] : null;
 
   return (

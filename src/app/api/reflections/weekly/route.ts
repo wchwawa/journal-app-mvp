@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     .limit(limit);
 
   if (error) {
+    // eslint-disable-next-line no-console
     console.error('Failed to fetch weekly reflections', error);
     return NextResponse.json(
       { error: 'Failed to fetch reflections' },

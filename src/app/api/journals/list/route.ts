@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
     const result = await getJournalsWithSummaries(supabase, userId, options);
     return NextResponse.json(result);
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Failed to fetch journals via API route', error);
     return NextResponse.json(
       { error: 'Failed to fetch journals' },

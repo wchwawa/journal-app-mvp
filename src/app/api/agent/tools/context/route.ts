@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // eslint-disable-next-line no-console
     console.error('Context tool error', error);
     return NextResponse.json(
       { error: 'Failed to fetch context' },
