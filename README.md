@@ -6,6 +6,8 @@
 
 **A voice-first journal that turns fragile voice notes into a personal, reflective memory.**
 
+**English** · [简体中文](README.zh-CN.md)
+
 [![Next.js 15](https://img.shields.io/badge/Next.js%2015-App%20Router-000000?logo=nextdotjs)](https://nextjs.org)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
