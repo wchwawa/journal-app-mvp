@@ -4,8 +4,9 @@ import BottomBar from '@/components/layout/bottom-bar';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Next Shadcn Dashboard Starter',
-  description: 'Basic dashboard with Next.js and Shadcn'
+  title: 'EchoJournal',
+  description:
+    'Voice-first journaling: speak your day, get structured reflections.'
 };
 
 export default function DashboardLayout({

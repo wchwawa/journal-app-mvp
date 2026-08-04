@@ -479,6 +479,18 @@ export default function AudioJournalPanel({
           ) : null}
         </div>
 
+        <span role='status' aria-live='polite' className='sr-only'>
+          {isRecording
+            ? 'Recording in progress'
+            : isPaused
+              ? 'Recording paused'
+              : isProcessing
+                ? 'Processing your journal'
+                : hasRecording
+                  ? 'Recording complete'
+                  : 'Ready to record'}
+        </span>
+
         <div className='flex w-full justify-center'>
           {!hasRecording ? (
             <div className='flex w-full max-w-sm flex-col items-center gap-4'>
@@ -488,6 +500,7 @@ export default function AudioJournalPanel({
                     onClick={pauseRecording}
                     variant='outline'
                     size='icon'
+                    aria-label='Pause recording'
                     className='h-12 w-12 rounded-full'
                   >
                     <Pause className='h-4 w-4' />
@@ -502,6 +515,13 @@ export default function AudioJournalPanel({
                         : startRecording
                   }
                   disabled={isProcessing}
+                  aria-label={
+                    isRecording
+                      ? 'Stop recording'
+                      : isPaused
+                        ? 'Resume recording'
+                        : 'Start recording'
+                  }
                   size='lg'
                   className={cn(
                     'h-[4.25rem] w-[4.25rem] rounded-full transition-all duration-300',
@@ -526,6 +546,7 @@ export default function AudioJournalPanel({
                     onClick={restartRecording}
                     variant='outline'
                     size='icon'
+                    aria-label='Restart recording'
                     className='h-12 w-12 rounded-full'
                   >
                     <RotateCcw className='h-4 w-4' />
@@ -539,6 +560,7 @@ export default function AudioJournalPanel({
                 onClick={toggleAudioPlayback}
                 variant='outline'
                 size='icon'
+                aria-label={isPlaying ? 'Pause playback' : 'Play recording'}
                 className='h-12 w-12 rounded-full'
               >
                 {isPlaying ? (
@@ -552,6 +574,7 @@ export default function AudioJournalPanel({
                 onClick={discardRecording}
                 variant='outline'
                 size='icon'
+                aria-label='Discard recording'
                 className='h-12 w-12 rounded-full border-red-200 text-red-600 hover:border-red-300 hover:bg-red-50'
               >
                 <Trash2 className='h-5 w-5' />

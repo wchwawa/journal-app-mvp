@@ -45,7 +45,6 @@ export async function POST(request: NextRequest) {
     }
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    // @ts-expect-error: web_search is a valid tool type
     const response = await openai.responses.create({
       model: SEARCH_MODEL,
       max_output_tokens: 600,
@@ -53,18 +52,17 @@ export async function POST(request: NextRequest) {
       input: [
         {
           role: 'system',
-          content: [{ type: 'text', text: systemPrompt }]
+          content: [{ type: 'input_text', text: systemPrompt }]
         },
         {
           role: 'user',
-          content: [{ type: 'text', text: payload.query }]
+          content: [{ type: 'input_text', text: payload.query }]
         }
       ]
     });
 
-    const rawText = Array.isArray(response.output_text)
-      ? response.output_text.join('\n')
-      : '';
+    // output_text is a string aggregate of all text output items.
+    const rawText = response.output_text ?? '';
 
     let parsed: unknown = null;
     try {

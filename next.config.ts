@@ -1,6 +1,13 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 
+// Fail fast if the dev-only auth escape hatch leaks into a production build.
+if (process.env.NODE_ENV === 'production' && process.env.DEV_DISABLE_AUTH) {
+  throw new Error(
+    'DEV_DISABLE_AUTH must never be set in production environments.'
+  );
+}
+
 // Define the base Next.js configuration
 const baseConfig: NextConfig = {
   images: {

@@ -1,1 +1,1 @@
-pnpm run build
+pnpm typecheck && pnpm test

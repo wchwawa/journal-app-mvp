@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import OpenAI from 'openai';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
 import { syncReflectionsForDate } from '@/lib/reflections/sync';
 import { getUtcRangeForDate } from '@/lib/timezone';
 import { isTrustedOrigin } from '@/lib/security';
+import { SUMMARY_MODEL } from '@/lib/ai/models';
+
+// Summary generation chains OpenAI calls; allow more than the platform default.
+export const maxDuration = 120;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -103,7 +108,7 @@ export async function POST(request: NextRequest) {
       : '';
 
     const summaryResponse = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: SUMMARY_MODEL,
       messages: [
         {
           role: 'system',
@@ -125,8 +130,7 @@ export async function POST(request: NextRequest) {
           content: `Create a daily summary from these journal entries:${moodContext}\n\n${journalTexts}`
         }
       ],
-      max_tokens: 300,
-      temperature: 0.7
+      max_completion_tokens: 300
     });
 
     const summary = summaryResponse.choices[0]?.message?.content || '';
@@ -160,8 +164,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Trigger echos sync in background to keep summary response fast
-    (async () => {
+    // Echos sync after the response is sent. after() is guaranteed to run on
+    // serverless, unlike a floating promise dropped when the instance freezes.
+    after(async () => {
       try {
         await syncReflectionsForDate({
           supabase,
@@ -173,7 +178,7 @@ export async function POST(request: NextRequest) {
         // eslint-disable-next-line no-console
         console.error('Background reflections sync failed:', reflectionError);
       }
-    })();
+    });
 
     // Return success response
     return NextResponse.json({

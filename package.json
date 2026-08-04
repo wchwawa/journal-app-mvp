@@ -1,10 +1,10 @@
 {
-  "name": "next-shadcn-dashboard-starter",
-  "version": "1.0.0",
+  "name": "echo-journal",
+  "version": "0.1.0",
   "private": true,
   "author": {
-    "name": "Kiran",
-    "url": "https://github.com/Kiranism"
+    "name": "Changhao Wang",
+    "url": "https://github.com/wchwawa"
   },
   "scripts": {
     "dev": "next dev --turbopack",
@@ -15,11 +15,18 @@
     "lint:strict": "eslint --max-warnings=0 src",
     "format": "prettier --write .",
     "format:check": "prettier -c -w .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
     "prepare": "husky",
-    "supabase:generate-types": "npx supabase gen types typescript --project-id frivnmdteytojzqukjwy > src/types/supabase.ts"
+    "supabase:generate-types": "npx supabase gen types typescript --project-id ${SUPABASE_PROJECT_ID:-frivnmdteytojzqukjwy} > src/types/supabase.ts"
   },
   "lint-staged": {
-    "**/*.{js,jsx,tsx,ts,css,less,scss,sass}": [
+    "**/*.{js,jsx,tsx,ts}": [
+      "eslint --fix --no-error-on-unmatched-pattern",
+      "prettier --write --no-error-on-unmatched-pattern"
+    ],
+    "**/*.{css,less,scss,sass}": [
       "prettier --write --no-error-on-unmatched-pattern"
     ]
   },
@@ -30,9 +37,9 @@
     "@dnd-kit/modifiers": "^7.0.0",
     "@dnd-kit/sortable": "^8.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@hookform/resolvers": "^3.9.1",
-    "@openai/agents": "0.3.0",
-    "@openai/agents-realtime": "0.0.10",
+    "@hookform/resolvers": "^5.7.1",
+    "@openai/agents": "0.14.2",
+    "@openai/agents-realtime": "0.14.2",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-aspect-ratio": "^1.1.2",
@@ -72,18 +79,18 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "eslint": "8.48.0",
-    "eslint-config-next": "15.1.0",
+    "eslint-config-next": "15.3.8",
     "input-otp": "^1.4.2",
     "jq": "^1.7.2",
     "kbar": "^0.1.0-beta.45",
     "lucide-react": "^0.476.0",
     "match-sorter": "^8.0.0",
     "motion": "^11.17.0",
-    "next": "15.3.2",
+    "next": "15.3.8",
     "next-themes": "^0.4.6",
     "nextjs-toploader": "^3.7.15",
     "nuqs": "^2.4.1",
-    "openai": "^5.10.1",
+    "openai": "^7.3.0",
     "postcss": "8.4.49",
     "react": "19.0.0",
     "react-day-picker": "^8.10.1",
@@ -104,7 +111,7 @@
     "uuid": "^11.0.3",
     "vaul": "^1.1.2",
     "wavesurfer.js": "^7.11.1",
-    "zod": "^3.25.40",
+    "zod": "^4.4.3",
     "zustand": "^5.0.2"
   },
   "devDependencies": {

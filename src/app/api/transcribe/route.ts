@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import OpenAI from 'openai';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
 import { syncReflectionsForDate } from '@/lib/reflections/sync';
 import { getLocalDayRange } from '@/lib/timezone';
 import { isTrustedOrigin } from '@/lib/security';
+import {
+  REPHRASE_MODEL,
+  SUMMARY_MODEL,
+  TRANSCRIBE_MODEL
+} from '@/lib/ai/models';
+
+// Transcription + rephrase chain OpenAI calls; allow more than the platform default.
+export const maxDuration = 120;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -91,7 +100,7 @@ async function generateDailySummary(
     : '';
 
   const summaryResponse = await openaiClient.chat.completions.create({
-    model: 'gpt-4o',
+    model: SUMMARY_MODEL,
     messages: [
       {
         role: 'system',
@@ -113,8 +122,7 @@ async function generateDailySummary(
         content: `Create a daily summary from these journal entries:${moodContext}\n\n${journalTexts}`
       }
     ],
-    max_tokens: 300,
-    temperature: 0.7
+    max_completion_tokens: 300
   });
 
   const summary = summaryResponse.choices[0]?.message?.content || '';
@@ -188,10 +196,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 1: Transcribe audio with Whisper
+    // Step 1: Transcribe audio
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
-      model: 'whisper-1',
+      model: TRANSCRIBE_MODEL,
       response_format: 'text'
     });
 
@@ -204,7 +212,7 @@ export async function POST(request: NextRequest) {
 
     // Step 2: AI rephraser for rephrasing the transcription
     const summaryResponse = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: REPHRASE_MODEL,
       messages: [
         {
           role: 'system',
@@ -227,8 +235,7 @@ export async function POST(request: NextRequest) {
           content: `Transform this spoken journal entry into a first-person written summary:\n\n${transcription}`
         }
       ],
-      max_tokens: 300,
-      temperature: 0.3
+      max_completion_tokens: 300
     });
 
     const rephrasedText = summaryResponse.choices[0]?.message?.content || '';
@@ -298,8 +305,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 6: Kick off daily summary + echos sync in background (non-blocking)
-    (async () => {
+    // Step 6: Daily summary + echos sync after the response is sent.
+    // after() is guaranteed to run on serverless, unlike a floating promise
+    // which is dropped when the instance freezes post-response.
+    after(async () => {
       try {
         const summaryData = await generateDailySummary(
           userId,
@@ -318,7 +327,7 @@ export async function POST(request: NextRequest) {
         // eslint-disable-next-line no-console
         console.error('Background daily summary failed:', summaryError);
       }
-    })();
+    });
 
     // Return success response
     return NextResponse.json({

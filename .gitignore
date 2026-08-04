@@ -88,3 +88,9 @@ supabase/.env
 /sample_agent
 
 src.zip
+
+# committed example env must survive the .env* rules above
+!.env.example
+
+# generated test artifacts
+tests/reports/

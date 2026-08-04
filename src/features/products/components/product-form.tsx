@@ -63,6 +63,7 @@ export default function ProductForm({
   pageTitle: string;
 }) {
   const defaultValues = {
+    image: undefined,
     name: initialData?.name || '',
     category: initialData?.category || '',
     price: initialData?.price || 0,

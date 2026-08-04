@@ -23,7 +23,7 @@ interface GenerateOptions {
   anchorDate?: string;
 }
 
-const MODEL_NAME = process.env.OPENAI_REFLECTION_MODEL ?? 'gpt-4o-mini';
+const MODEL_NAME = process.env.OPENAI_REFLECTION_MODEL ?? 'gpt-5.6-luna';
 const GEN_VERSION = 'module-b-v1';
 
 const sanitizeArray = (value: string[] | null | undefined) =>

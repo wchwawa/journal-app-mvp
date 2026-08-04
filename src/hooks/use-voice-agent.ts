@@ -80,18 +80,19 @@ export function useVoiceAgent() {
 
     try {
       const voice = findVoiceById(state.voiceId);
-      const tokenResponse = await fetch(
-        `/api/agent/token?voice=${encodeURIComponent(state.voiceId)}`
-      );
+      const tokenResponse = await fetch('/api/agent/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voice: state.voiceId })
+      });
 
       if (!tokenResponse.ok) {
         const details = await tokenResponse.json().catch(() => ({}));
         throw new Error(details.error ?? 'Failed to create session');
       }
 
-      const { token } = await tokenResponse.json();
+      const { token, model } = await tokenResponse.json();
       if (!token) throw new Error('Ephemeral token missing');
-      const model = 'gpt-realtime';
 
       const contextTool = tool({
         name: 'fetch_user_context',
@@ -194,11 +195,8 @@ export function useVoiceAgent() {
         }));
       });
 
-      // Some runtime versions require explicit model in the URL for SDP accept
-      const url = `https://api.openai.com/v1/realtime?model=${encodeURIComponent(
-        model
-      )}`;
-      await newSession.connect({ apiKey: token, url });
+      // GA Realtime API: the SDK connects to /v1/realtime/calls by default.
+      await newSession.connect({ apiKey: token, model });
 
       newSession.mute(true);
       sessionRef.current = newSession;

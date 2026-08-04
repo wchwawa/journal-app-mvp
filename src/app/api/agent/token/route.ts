@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { findVoiceById } from '@/lib/agent/voices';
 import OpenAI from 'openai';
+import { findVoiceById } from '@/lib/agent/voices';
+import { REALTIME_MODEL } from '@/lib/ai/models';
+import { isTrustedOrigin } from '@/lib/security';
 
-const REALTIME_MODEL = 'gpt-realtime';
-
-// Issue ephemeral token for realtime client connections
-export async function GET(request: NextRequest) {
+// Mint an ephemeral client secret for the GA Realtime API.
+// The session config (model + voice) is bound server-side so the client
+// cannot escalate to a more expensive model.
+export async function POST(request: NextRequest) {
   try {
+    if (!isTrustedOrigin(request)) {
+      return NextResponse.json(
+        { error: 'Invalid request origin' },
+        { status: 403 }
+      );
+    }
+
     const { userId } = await auth();
 
     if (!userId) {
@@ -21,18 +30,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const voiceParam = request.nextUrl.searchParams.get('voice') ?? undefined;
-    const voiceProfile = findVoiceById(voiceParam);
+    const body = await request.json().catch(() => ({}));
+    const voiceProfile = findVoiceById(
+      typeof body?.voice === 'string' ? body.voice : undefined
+    );
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const session = await openai.beta.realtime.sessions.create({
-      // type: "realtime",
-      // @ts-expect-error: backend accepts gpt-realtime even though client types lag behind
-      model: REALTIME_MODEL
+    const secret = await openai.realtime.clientSecrets.create({
+      session: {
+        type: 'realtime',
+        model: REALTIME_MODEL,
+        audio: {
+          output: { voice: voiceProfile.voice }
+        }
+      }
     });
 
-    const token: string | undefined = session?.client_secret.value;
-    if (!token) {
+    if (!secret?.value) {
       return NextResponse.json(
         { error: 'Ephemeral token missing in response' },
         { status: 500 }
@@ -40,7 +54,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      token,
+      token: secret.value,
+      expiresAt: secret.expires_at,
       model: REALTIME_MODEL,
       voice: voiceProfile.voice
     });
