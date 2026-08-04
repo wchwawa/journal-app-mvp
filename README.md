@@ -6,6 +6,8 @@
 
 **A voice-first journal that turns fragile voice notes into a personal, reflective memory.**
 
+**English** · [简体中文](README.zh-CN.md)
+
 [![Next.js 15](https://img.shields.io/badge/Next.js%2015-App%20Router-000000?logo=nextdotjs)](https://nextjs.org)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -129,8 +131,8 @@ Built by [wchwawa](https://github.com/wchwawa), and selected for the **USYD Gene
 **Prerequisites:** Node 20+, pnpm (`corepack enable`), a modern browser with microphone access, plus accounts for [Supabase](https://supabase.com), [Clerk](https://clerk.com) (optional — keyless dev mode works), and [OpenAI](https://platform.openai.com).
 
 ```bash
-git clone https://github.com/NoKV-Lab/journal-app-mvp.git
-cd journal-app-mvp
+git clone https://github.com/NoKV-Lab/EchoJournal.git
+cd EchoJournal
 pnpm install
 cp .env.example .env.local
 ```
