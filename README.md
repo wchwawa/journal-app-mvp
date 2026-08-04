@@ -131,8 +131,8 @@ Built by [wchwawa](https://github.com/wchwawa), and selected for the **USYD Gene
 **Prerequisites:** Node 20+, pnpm (`corepack enable`), a modern browser with microphone access, plus accounts for [Supabase](https://supabase.com), [Clerk](https://clerk.com) (optional — keyless dev mode works), and [OpenAI](https://platform.openai.com).
 
 ```bash
-git clone https://github.com/NoKV-Lab/journal-app-mvp.git
-cd journal-app-mvp
+git clone https://github.com/NoKV-Lab/EchoJournal.git
+cd EchoJournal
 pnpm install
 cp .env.example .env.local
 ```

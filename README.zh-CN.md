@@ -134,8 +134,8 @@ flowchart LR
 **环境要求：** Node 20+、pnpm（`corepack enable`）、支持麦克风的现代浏览器，以及 [Supabase](https://supabase.com)、[Clerk](https://clerk.com)（可选——支持 keyless 开发模式）和 [OpenAI](https://platform.openai.com) 账号。
 
 ```bash
-git clone https://github.com/NoKV-Lab/journal-app-mvp.git
-cd journal-app-mvp
+git clone https://github.com/NoKV-Lab/EchoJournal.git
+cd EchoJournal
 pnpm install
 cp .env.example .env.local
 ```
