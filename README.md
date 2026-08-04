@@ -122,7 +122,7 @@ flowchart LR
 
 ## Recognition
 
-Built by [Changhao (Jason) Wang](https://github.com/wchwawa), and selected for the **USYD Genesis Accelerator — Cohort 36** (~9% acceptance rate).
+Built by [wchwawa](https://github.com/wchwawa), and selected for the **USYD Genesis Accelerator — Cohort 36** (~9% acceptance rate).
 
 ## Getting started
 
@@ -300,6 +300,6 @@ Hitting issues? See [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 ## License & credits
 
-MIT. UI scaffolding began from [next-shadcn-dashboard-starter](https://github.com/Kiranism/next-shadcn-dashboard-starter) (see [LICENSE](LICENSE)); everything voice, AI, and journaling is original work by [Changhao (Jason) Wang](https://github.com/wchwawa).
+MIT. UI scaffolding began from [next-shadcn-dashboard-starter](https://github.com/Kiranism/next-shadcn-dashboard-starter) (see [LICENSE](LICENSE)); everything voice, AI, and journaling is original work by [wchwawa](https://github.com/wchwawa).
 
 > *EchoJournal — because some days you have the most to say and the least patience to type.*
