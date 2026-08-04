@@ -124,7 +124,7 @@ flowchart LR
 
 ## Recognition
 
-Built by [wchwawa](https://github.com/wchwawa), and selected for the **USYD Genesis Accelerator — Cohort 36** (~9% acceptance rate).
+Built by [wchwawa](https://github.com/wchwawa), and selected for the **USYD Genesis Accelerator — Cohort 36**.
 
 ## Getting started
 
