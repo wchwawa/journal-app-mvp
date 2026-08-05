@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { getJournalRepo } from '@/lib/data';
 import { serializePeriodReflection } from '@/lib/reflections/serialize';
 import { MAX_LISTED_REFLECTIONS } from '@/lib/reflections/types';
+import type { Tables } from '@/types/supabase';
 
 export async function GET(request: NextRequest) {
   const { userId } = await auth();
@@ -11,7 +12,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const supabase = createAdminClient();
   const searchParams = request.nextUrl.searchParams;
   const limitParam = Number.parseInt(
     searchParams.get('limit') ?? `${MAX_LISTED_REFLECTIONS.weekly}`,
@@ -21,15 +21,19 @@ export async function GET(request: NextRequest) {
     ? MAX_LISTED_REFLECTIONS.weekly
     : Math.min(limitParam, MAX_LISTED_REFLECTIONS.weekly);
 
-  const { data, error } = await supabase
-    .from('period_reflections')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('period_type', 'weekly')
-    .order('period_start', { ascending: false })
-    .limit(limit);
+  try {
+    const data = await getJournalRepo().listPeriodReflections(
+      userId,
+      'weekly',
+      limit
+    );
 
-  if (error) {
+    return NextResponse.json({
+      cards: data.map((row) =>
+        serializePeriodReflection(row as Tables<'period_reflections'>)
+      )
+    });
+  } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to fetch weekly reflections', error);
     return NextResponse.json(
@@ -37,8 +41,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-
-  return NextResponse.json({
-    cards: (data ?? []).map(serializePeriodReflection)
-  });
 }

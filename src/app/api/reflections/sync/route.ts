@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import OpenAI from 'openai';
 import { ZodError } from 'zod';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { getJournalRepo, NokvUnavailableError } from '@/lib/data';
 import { generateReflection } from '@/lib/reflections/generator';
 import { syncPayloadSchema } from '@/lib/reflections/schema';
 import { isTrustedOrigin } from '@/lib/security';
@@ -32,13 +32,13 @@ export async function POST(request: NextRequest) {
     const payload = await request.json();
     const parsed = syncPayloadSchema.parse(payload);
 
-    const supabase = createAdminClient();
+    const repo = getJournalRepo();
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY
     });
 
     const result = await generateReflection({
-      supabase,
+      repo,
       openai,
       userId,
       mode: parsed.mode,
@@ -51,6 +51,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid request', details: error.flatten() },
         { status: 422 }
+      );
+    }
+    if (error instanceof NokvUnavailableError) {
+      return NextResponse.json(
+        { error: 'Data backend unavailable' },
+        { status: 503 }
       );
     }
     // eslint-disable-next-line no-console

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { z } from 'zod';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { getJournalRepo } from '@/lib/data';
 import { fetchUserContext } from '@/lib/agent/context';
 import type { ContextRequest } from '@/lib/agent/context';
 import { isTrustedOrigin } from '@/lib/security';
@@ -56,9 +56,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createAdminClient();
+    const repo = getJournalRepo();
     const startedAt = Date.now();
-    const context = await fetchUserContext(supabase, userId, payload);
+    const context = await fetchUserContext(repo, userId, payload);
 
     // Optional NoKV trace, written after the response is sent.
     const sessionRef = request.headers.get('x-echo-session');

@@ -18,9 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { CloudRain, CloudSun, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
-import { getLocalDayRange } from '@/lib/timezone';
-import { TablesInsert, Tables } from '@/types/supabase';
+import type { MoodEntry } from '@/lib/data/repository';
 
 const DAY_QUALITY_OPTIONS = [
   { value: 'good', label: 'Good day', icon: Sun },
@@ -43,32 +41,24 @@ const DailyMoodModal = forwardRef<DailyMoodModalRef, DailyMoodModalProps>(
     const [isLoading, setIsLoading] = useState(false);
     const [dayQuality, setDayQuality] = useState('');
     const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
-    const [existingEntry, setExistingEntry] =
-      useState<Tables<'daily_question'> | null>(null);
-    const [isUpdateMode, setIsUpdateMode] = useState(false);
+    const [existingEntry, setExistingEntry] = useState<MoodEntry | null>(null);
+    const isUpdateMode = existingEntry !== null;
 
-    const supabase = createClient();
-
-    const checkDailyEntry = useCallback(async () => {
+    const checkDailyEntry = useCallback(async (): Promise<MoodEntry | null> => {
       if (!user?.id) return null;
 
-      const { start, end } = getLocalDayRange();
-
-      const { data, error } = await supabase
-        .from('daily_question')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('created_at', start)
-        .lte('created_at', end)
-        .single();
-
-      if (error && error.code === 'PGRST116') {
-        // No entry found for today
+      try {
+        const response = await fetch('/api/mood/today');
+        if (!response.ok) {
+          // No readable entry for today
+          return null;
+        }
+        const payload = (await response.json()) as { mood: MoodEntry | null };
+        return payload.mood;
+      } catch {
         return null;
       }
-
-      return data;
-    }, [user?.id, supabase]);
+    }, [user?.id]);
 
     const openModal = async () => {
       const entry = await checkDailyEntry();
@@ -78,13 +68,11 @@ const DailyMoodModal = forwardRef<DailyMoodModalRef, DailyMoodModalProps>(
         setExistingEntry(entry);
         setDayQuality(entry.day_quality);
         setSelectedEmotions(entry.emotions || []);
-        setIsUpdateMode(true);
       } else {
         // Create mode - clear form
         setExistingEntry(null);
         setDayQuality('');
         setSelectedEmotions([]);
-        setIsUpdateMode(false);
       }
 
       setIsOpen(true);
@@ -119,48 +107,33 @@ const DailyMoodModal = forwardRef<DailyMoodModalRef, DailyMoodModalProps>(
 
       setIsLoading(true);
 
-      let error;
+      try {
+        // PUT upserts: creates today's entry or updates the existing one
+        const response = await fetch('/api/mood/today', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dayQuality,
+            emotions: selectedEmotions
+          })
+        });
 
-      if (isUpdateMode && existingEntry) {
-        // Update existing entry
-        const updateData = {
-          day_quality: dayQuality,
-          emotions: selectedEmotions,
-          updated_at: new Date().toISOString()
-        };
+        if (response.ok) {
+          setIsOpen(false);
+          // Reset form state
+          setDayQuality('');
+          setSelectedEmotions([]);
+          setExistingEntry(null);
 
-        const result = await supabase
-          .from('daily_question')
-          .update(updateData)
-          .eq('id', existingEntry.id);
-
-        error = result.error;
-      } else {
-        // Create new entry
-        const entry: TablesInsert<'daily_question'> = {
-          user_id: user.id,
-          day_quality: dayQuality,
-          emotions: selectedEmotions
-        };
-
-        const result = await supabase.from('daily_question').insert(entry);
-        error = result.error;
+          // Dispatch event to notify other components about the mood update
+          const event = new CustomEvent('moodEntryUpdated');
+          window.dispatchEvent(event);
+        }
+      } catch (err) {
+        console.error('Error saving mood entry:', err);
+      } finally {
+        setIsLoading(false);
       }
-
-      if (!error) {
-        setIsOpen(false);
-        // Reset form state
-        setDayQuality('');
-        setSelectedEmotions([]);
-        setExistingEntry(null);
-        setIsUpdateMode(false);
-
-        // Dispatch event to notify other components about the mood update
-        const event = new CustomEvent('moodEntryUpdated');
-        window.dispatchEvent(event);
-      }
-
-      setIsLoading(false);
     };
 
     const isValid = dayQuality.length > 0;

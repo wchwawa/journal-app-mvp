@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
+import { getJournalRepo } from '@/lib/data';
 
 export async function GET(
   request: NextRequest,
@@ -21,48 +21,23 @@ export async function GET(
       );
     }
 
-    const supabase = createAdminClient();
+    const repo = getJournalRepo();
+    const audio = await repo.getAudioBlob(userId, id);
 
-    // First, verify that the audio file belongs to the authenticated user
-    const { data: audioFile, error: audioFileError } = await supabase
-      .from('audio_files')
-      .select('storage_path, mime_type')
-      .eq('id', id)
-      .eq('user_id', userId)
-      .single();
-
-    if (audioFileError || !audioFile) {
+    if (!audio) {
       return NextResponse.json(
         { error: 'Audio file not found or access denied' },
         { status: 404 }
       );
     }
 
-    // Get the audio file from Supabase Storage
-    const { data: audioData, error: storageError } = await supabase.storage
-      .from('audio-files')
-      .download(audioFile.storage_path);
-
-    if (storageError || !audioData) {
-      // eslint-disable-next-line no-console
-      console.error('Error downloading audio file:', storageError);
-      return NextResponse.json(
-        { error: 'Failed to retrieve audio file' },
-        { status: 500 }
-      );
-    }
-
-    // Convert blob to array buffer
-    const buffer = await audioData.arrayBuffer();
-
     // Return the audio file with appropriate headers
-    return new NextResponse(buffer, {
+    return new NextResponse(audio.data, {
       status: 200,
       headers: {
-        'Content-Type': audioFile.mime_type || 'audio/webm',
-        'Content-Length': buffer.byteLength.toString(),
-        'Cache-Control': 'private, max-age=3600', // Cache for 1 hour
-        'Accept-Ranges': 'bytes'
+        'Content-Type': audio.mimeType || 'audio/webm',
+        'Content-Length': audio.data.byteLength.toString(),
+        'Cache-Control': 'private, max-age=3600' // Cache for 1 hour
       }
     });
   } catch (error) {

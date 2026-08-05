@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type OpenAI from 'openai';
-import type { Tables, TablesUpdate } from '@/types/supabase';
+import type {
+  DailySummary,
+  JournalDataRepository,
+  MoodEntry
+} from '@/lib/data/repository';
 import { generateReflection } from '@/lib/reflections/generator';
 import {
   fetchDailyAggregate,
@@ -20,10 +24,7 @@ vi.mock('@/lib/reflections/aggregate', async () => {
   };
 });
 
-type DailySummaryRow = Tables<'daily_summaries'>;
-type DailyMoodRow = Tables<'daily_question'>;
-
-const baseSummary = (): DailySummaryRow => ({
+const baseSummary = (): DailySummary => ({
   id: 'summary-1',
   user_id: 'user-1',
   date: '2025-11-11',
@@ -44,57 +45,46 @@ const baseSummary = (): DailySummaryRow => ({
   updated_at: null
 });
 
-const baseMood = (): DailyMoodRow => ({
+const baseMood = (): MoodEntry => ({
   id: 'mood-1',
-  user_id: 'user-1',
+  date: '2025-11-11',
   day_quality: 'good',
   emotions: ['Happy', 'Calm'],
   created_at: '2025-11-11T08:00:00Z',
   updated_at: null
 });
 
-// Minimal Supabase client stub that captures the latest update payload.
-const makeSupabaseStub = () => {
-  let lastUpdate: TablesUpdate<'daily_summaries'> | null = null;
-  const stub = {
-    from: (table: string) => {
-      if (table !== 'daily_summaries') {
-        throw new Error(`Unexpected table ${table}`);
-      }
+// Repo stub that applies the preserveIfEdited contract exactly like the real
+// repositories: user-owned fields survive, generation metadata advances.
+const makeRepoStub = () => {
+  const updateDailySummaryReflection = vi.fn(
+    async (
+      _userId: string,
+      _date: string,
+      patch: Record<string, unknown>,
+      opts: { preserveIfEdited?: boolean; markEdited?: boolean }
+    ): Promise<DailySummary> => {
+      const existing = baseSummary();
+      const preserved = Boolean(opts.preserveIfEdited && existing.edited);
       return {
-        update: (payload: TablesUpdate<'daily_summaries'>) => {
-          lastUpdate = payload;
-          return {
-            eq: () => ({
-              select: () => ({
-                single: async () => ({
-                  data: {
-                    ...baseSummary(),
-                    ...payload,
-                    achievements:
-                      payload.achievements ?? baseSummary().achievements,
-                    commitments:
-                      payload.commitments ?? baseSummary().commitments,
-                    mood_overall:
-                      payload.mood_overall ?? baseSummary().mood_overall,
-                    mood_reason:
-                      payload.mood_reason ?? baseSummary().mood_reason,
-                    flashback: payload.flashback ?? baseSummary().flashback,
-                    stats: payload.stats ?? null,
-                    edited: payload.edited ?? baseSummary().edited,
-                    last_generated_at:
-                      payload.last_generated_at ??
-                      baseSummary().last_generated_at
-                  }
-                })
-              })
-            })
-          };
-        }
+        ...existing,
+        ...(preserved
+          ? {
+              stats: (patch.stats as DailySummary['stats']) ?? existing.stats,
+              gen_version:
+                (patch.gen_version as string) ?? existing.gen_version,
+              last_generated_at:
+                (patch.last_generated_at as string) ??
+                existing.last_generated_at
+            }
+          : patch)
       };
     }
-  };
-  return { stub: stub as any, getLastUpdate: () => lastUpdate };
+  );
+  const stub = {
+    updateDailySummaryReflection
+  } as unknown as JournalDataRepository;
+  return { stub, updateDailySummaryReflection };
 };
 
 const openaiStub = {
@@ -161,29 +151,30 @@ beforeEach(() => {
 });
 
 describe('generateReflection – daily mode', () => {
-  it('keeps edited content while updating stats + metadata', async () => {
-    const { stub: supabase, getLastUpdate } = makeSupabaseStub();
+  it('requests preserveIfEdited and keeps edited content in the card', async () => {
+    const { stub, updateDailySummaryReflection } = makeRepoStub();
 
     const card = await generateReflection({
-      supabase,
+      repo: stub,
       openai: openaiStub,
       userId: 'user-1',
       mode: 'daily',
       anchorDate: '2025-11-11'
     });
 
-    const payload = getLastUpdate();
-    expect(payload).toBeTruthy();
-    expect(payload?.achievements).toEqual(['Manual win']);
-    expect(payload?.commitments).toEqual(['Manual focus']);
-    expect(payload?.mood_overall).toBe('hopeful');
-    expect(payload?.gen_version).toBe('module-b-v1');
-    expect(payload?.stats).toBeTruthy();
+    expect(updateDailySummaryReflection).toHaveBeenCalledTimes(1);
+    const [, date, patch, opts] = updateDailySummaryReflection.mock.calls[0];
+    expect(date).toBe('2025-11-11');
+    expect(opts).toEqual({ preserveIfEdited: true });
+    // Machine output flows into the patch (repo decides what survives)...
+    expect(patch.gen_version).toBe('module-b-v1');
+    expect(patch.stats).toBeTruthy();
+    expect((patch.stats as { keywords: string[] }).keywords).toHaveLength(8); // trimmed to max 8
 
+    // ...while the edited row keeps user content in the projected card.
     expect(card.period.date).toBe('2025-11-11');
     expect(card.achievements).toEqual(['Manual win']);
     expect(card.commitments).toEqual(['Manual focus']);
     expect(card.moodOverall).toBe('hopeful');
-    expect(card.stats?.keywords).toHaveLength(8); // trimmed to max 8
   });
 });

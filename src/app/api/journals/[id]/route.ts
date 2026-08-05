@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
-import { getLocalDayRange } from '@/lib/timezone';
+import { getJournalRepo, NokvUnavailableError } from '@/lib/data';
+import type { JournalEntry } from '@/lib/data';
 import { isTrustedOrigin } from '@/lib/security';
 
 export async function PUT(
@@ -41,17 +41,11 @@ export async function PUT(
       );
     }
 
-    const supabase = createAdminClient();
+    const repo = getJournalRepo();
 
-    // First, verify that the audio file belongs to the authenticated user
-    const { data: audioFile, error: audioFileError } = await supabase
-      .from('audio_files')
-      .select('id, user_id, created_at')
-      .eq('id', id)
-      .eq('user_id', userId)
-      .single();
-
-    if (audioFileError || !audioFile) {
+    // First, verify that the journal entry belongs to the authenticated user
+    const entry = await repo.getEntry(userId, id);
+    if (!entry) {
       return NextResponse.json(
         { error: 'Journal entry not found or access denied' },
         { status: 404 }
@@ -59,17 +53,16 @@ export async function PUT(
     }
 
     // Update the transcript's rephrased text
-    const { data: transcript, error: updateError } = await supabase
-      .from('transcripts')
-      .update({
-        rephrased_text: rephrased_text
-      })
-      .eq('audio_id', id)
-      .eq('user_id', userId)
-      .select()
-      .single();
-
-    if (updateError) {
+    let updated: JournalEntry;
+    try {
+      updated = await repo.updateRephrasedText(userId, id, rephrased_text);
+    } catch (updateError) {
+      if (updateError instanceof NokvUnavailableError) {
+        return NextResponse.json(
+          { error: 'Data backend temporarily unavailable' },
+          { status: 503 }
+        );
+      }
       // eslint-disable-next-line no-console
       console.error('Error updating transcript:', updateError);
       return NextResponse.json(
@@ -79,8 +72,7 @@ export async function PUT(
     }
 
     // Trigger daily summary regeneration
-    const audioCreatedAt = new Date(audioFile.created_at || new Date());
-    const { date: entryDate } = getLocalDayRange({ date: audioCreatedAt });
+    const entryDate = entry.date;
 
     fetch(`${request.nextUrl.origin}/api/generate-daily-summary`, {
       method: 'POST',
@@ -96,7 +88,15 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      transcript
+      transcript: {
+        id: updated.id,
+        user_id: userId,
+        audio_id: updated.id,
+        text: updated.transcript.text,
+        rephrased_text: updated.transcript.rephrased_text,
+        language: updated.transcript.language,
+        created_at: updated.transcript.updated_at
+      }
     });
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -134,63 +134,29 @@ export async function DELETE(
       );
     }
 
-    const supabase = createAdminClient();
+    const repo = getJournalRepo();
 
-    // First, verify that the audio file belongs to the authenticated user
-    const { data: audioFile, error: audioFileError } = await supabase
-      .from('audio_files')
-      .select('id, user_id, storage_path, created_at')
-      .eq('id', id)
-      .eq('user_id', userId)
-      .single();
-
-    if (audioFileError || !audioFile) {
+    // First, verify that the journal entry belongs to the authenticated user
+    const entry = await repo.getEntry(userId, id);
+    if (!entry) {
       return NextResponse.json(
         { error: 'Journal entry not found or access denied' },
         { status: 404 }
       );
     }
 
-    // Delete the transcript first (due to foreign key constraint)
-    const { error: transcriptDeleteError } = await supabase
-      .from('transcripts')
-      .delete()
-      .eq('audio_id', id)
-      .eq('user_id', userId);
-
-    if (transcriptDeleteError) {
+    // Delete transcript, audio blob and entry row
+    try {
+      await repo.deleteEntry(userId, id);
+    } catch (deleteError) {
+      if (deleteError instanceof NokvUnavailableError) {
+        return NextResponse.json(
+          { error: 'Data backend temporarily unavailable' },
+          { status: 503 }
+        );
+      }
       // eslint-disable-next-line no-console
-      console.error('Error deleting transcript:', transcriptDeleteError);
-      return NextResponse.json(
-        { error: 'Failed to delete transcript' },
-        { status: 500 }
-      );
-    }
-
-    // Delete the audio file from storage
-    const { error: storageDeleteError } = await supabase.storage
-      .from('audio-files')
-      .remove([audioFile.storage_path]);
-
-    if (storageDeleteError) {
-      // eslint-disable-next-line no-console
-      console.error(
-        'Error deleting audio file from storage:',
-        storageDeleteError
-      );
-      // Continue with database deletion even if storage deletion fails
-    }
-
-    // Delete the audio file record from database
-    const { error: audioDeleteError } = await supabase
-      .from('audio_files')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', userId);
-
-    if (audioDeleteError) {
-      // eslint-disable-next-line no-console
-      console.error('Error deleting audio file record:', audioDeleteError);
+      console.error('Error deleting journal entry:', deleteError);
       return NextResponse.json(
         { error: 'Failed to delete journal entry' },
         { status: 500 }
@@ -198,8 +164,7 @@ export async function DELETE(
     }
 
     // Trigger daily summary regeneration
-    const audioCreatedAt = new Date(audioFile.created_at || new Date());
-    const { date: entryDate } = getLocalDayRange({ date: audioCreatedAt });
+    const entryDate = entry.date;
 
     fetch(`${request.nextUrl.origin}/api/generate-daily-summary`, {
       method: 'POST',
