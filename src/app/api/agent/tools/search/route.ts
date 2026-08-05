@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { canUseSearch, recordSearchUsage } from '@/lib/agent/search-quota';
 import { isTrustedOrigin } from '@/lib/security';
+import { appendToolCall } from '@/lib/nokv/session-workspace';
 
 const SEARCH_MODEL = process.env.OPENAI_SEARCH_MODEL ?? 'gpt-4.1-mini';
 const systemPrompt = `You are a concise research aide. Always call the web_search tool first and return JSON with an array named results (title,url,snippet). Limit to top three items.`;
@@ -45,6 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const startedAt = Date.now();
     const response = await openai.responses.create({
       model: SEARCH_MODEL,
       max_output_tokens: 600,
@@ -70,6 +73,26 @@ export async function POST(request: NextRequest) {
     } catch {}
 
     const { remaining } = recordSearchUsage(userId);
+
+    // Optional NoKV trace, written after the response is sent.
+    const sessionRef = request.headers.get('x-echo-session');
+    if (sessionRef) {
+      const durationMs = Date.now() - startedAt;
+      const resultCount =
+        parsed &&
+        typeof parsed === 'object' &&
+        Array.isArray((parsed as any).results)
+          ? (parsed as any).results.length
+          : 0;
+      after(() =>
+        appendToolCall(userId, sessionRef, {
+          tool: 'web_search',
+          args: { query: payload.query },
+          resultSummary: { results: resultCount, remaining },
+          durationMs
+        })
+      );
+    }
 
     if (
       !parsed ||

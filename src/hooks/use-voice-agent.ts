@@ -40,6 +40,10 @@ export function useVoiceAgent() {
   const sessionRef = useRef<RealtimeSession | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionStartedRef = useRef<number | null>(null);
+  // NoKV session workspace ref + last agent reply. Refs, not state: the
+  // disconnect callback closes over stale state otherwise.
+  const nokvSessionRef = useRef<string | null>(null);
+  const lastMessageRef = useRef('');
 
   const resetTimer = useCallback(() => {
     if (timerRef.current) {
@@ -50,6 +54,21 @@ export function useVoiceAgent() {
 
   const disconnect = useCallback(() => {
     resetTimer();
+    // Report session end for the NoKV workspace commit (fire-and-forget).
+    if (nokvSessionRef.current) {
+      fetch('/api/agent/session/end', {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionRef: nokvSessionRef.current,
+          lastMessage: lastMessageRef.current.slice(0, 8192),
+          endedReason: 'user_disconnect'
+        })
+      }).catch(() => {});
+      nokvSessionRef.current = null;
+      lastMessageRef.current = '';
+    }
     sessionRef.current?.close();
     sessionRef.current = null;
     sessionStartedRef.current = null;
@@ -91,8 +110,9 @@ export function useVoiceAgent() {
         throw new Error(details.error ?? 'Failed to create session');
       }
 
-      const { token, model } = await tokenResponse.json();
+      const { token, model, sessionRef: nokvRef } = await tokenResponse.json();
       if (!token) throw new Error('Ephemeral token missing');
+      nokvSessionRef.current = typeof nokvRef === 'string' ? nokvRef : null;
 
       const contextTool = tool({
         name: 'fetch_user_context',
@@ -117,7 +137,12 @@ export function useVoiceAgent() {
 
           const response = await fetch('/api/agent/tools/context', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(nokvSessionRef.current
+                ? { 'x-echo-session': nokvSessionRef.current }
+                : {})
+            },
             body: JSON.stringify(payload)
           });
 
@@ -142,7 +167,12 @@ export function useVoiceAgent() {
         execute: async (input) => {
           const response = await fetch('/api/agent/tools/search', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(nokvSessionRef.current
+                ? { 'x-echo-session': nokvSessionRef.current }
+                : {})
+            },
             body: JSON.stringify(input)
           });
 
@@ -174,6 +204,7 @@ export function useVoiceAgent() {
 
       newSession.on('agent_end', (_ctx, _agent, output) => {
         if (output) {
+          lastMessageRef.current = output;
           setState((prev) => ({ ...prev, lastMessage: output }));
         }
       });

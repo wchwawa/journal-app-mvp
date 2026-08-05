@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import OpenAI from 'openai';
 import { findVoiceById } from '@/lib/agent/voices';
 import { REALTIME_MODEL } from '@/lib/ai/models';
 import { isTrustedOrigin } from '@/lib/security';
+import { isNokvEnabled } from '@/lib/nokv/mcp-client';
+import {
+  createSessionWorkspace,
+  mintSessionRef
+} from '@/lib/nokv/session-workspace';
 
 // Mint an ephemeral client secret for the GA Realtime API.
 // The session config (model + voice) is bound server-side so the client
@@ -41,6 +47,11 @@ export async function POST(request: NextRequest) {
         type: 'realtime',
         model: REALTIME_MODEL,
         audio: {
+          // semantic_vad tolerates the long pauses of journaling monologues
+          // far better than server_vad's fixed silence threshold.
+          input: {
+            turn_detection: { type: 'semantic_vad', eagerness: 'low' }
+          },
           output: { voice: voiceProfile.voice }
         }
       }
@@ -53,11 +64,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Optional NoKV session workspace: mint a signed ref for the client and
+    // create the workbench after the response (never on the hot path).
+    let sessionRef: string | null = null;
+    if (isNokvEnabled()) {
+      sessionRef = mintSessionRef(userId);
+      if (sessionRef) {
+        const startedAt = new Date().toISOString();
+        const ref = sessionRef;
+        after(() =>
+          createSessionWorkspace(userId, ref, {
+            voice: voiceProfile.voice,
+            model: REALTIME_MODEL,
+            startedAt
+          })
+        );
+      }
+    }
+
     return NextResponse.json({
       token: secret.value,
       expiresAt: secret.expires_at,
       model: REALTIME_MODEL,
-      voice: voiceProfile.voice
+      voice: voiceProfile.voice,
+      ...(sessionRef ? { sessionRef } : {})
     });
   } catch (error) {
     // eslint-disable-next-line no-console
