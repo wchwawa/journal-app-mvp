@@ -29,7 +29,7 @@ export default function BottomBar() {
 
   return (
     <div
-      className='pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center'
+      className='pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center lg:hidden'
       style={{
         paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)'
       }}

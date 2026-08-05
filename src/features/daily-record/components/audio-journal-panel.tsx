@@ -411,7 +411,8 @@ export default function AudioJournalPanel({
 
   return (
     <div className={cn('mx-auto flex h-full w-full max-w-md', className)}>
-      <div className='border-border/30 bg-card/90 flex min-h-[400px] w-full flex-col gap-5 rounded-3xl border p-6 shadow-lg'>
+      {/* Surface comes from the page-level card; keep this shell flat. */}
+      <div className='flex min-h-[400px] w-full flex-col gap-5 p-2 sm:p-4'>
         <div className='text-center'>
           <h2 className='text-foreground text-xl font-semibold tracking-tight'>
             Record Your Journal

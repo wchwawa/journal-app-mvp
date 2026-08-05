@@ -8,7 +8,6 @@ import { cookies } from 'next/headers';
 import NextTopLoader from 'nextjs-toploader';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import './globals.css';
-import './theme.css';
 
 const META_THEME_COLORS = {
   light: '#ffffff',
