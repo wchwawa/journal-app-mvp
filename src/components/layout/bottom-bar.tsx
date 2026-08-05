@@ -22,7 +22,7 @@ const NAV_ITEMS = [
 ];
 
 const buttonBaseClass =
-  'bg-card/95 backdrop-blur flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg shadow-black/10 ring-1 ring-border/40 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 hover:translate-y-[-1px]';
+  'bg-card/95 backdrop-blur flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl px-2 py-3 text-sm font-semibold shadow-lg shadow-black/10 ring-1 ring-border/40 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 hover:translate-y-[-1px] sm:gap-2 sm:px-4';
 
 export default function BottomBar() {
   const pathname = usePathname();
@@ -34,7 +34,7 @@ export default function BottomBar() {
         paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)'
       }}
     >
-      <div className='pointer-events-auto mx-auto flex w-full max-w-md gap-3 px-4 pb-2 sm:max-w-lg'>
+      <div className='pointer-events-auto mx-auto flex w-full max-w-md gap-2 px-4 pb-2 sm:max-w-lg sm:gap-3'>
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = pathname.startsWith(item.href);
@@ -50,8 +50,8 @@ export default function BottomBar() {
                   'border-primary/40 bg-primary text-primary-foreground shadow-lg'
               )}
             >
-              <Icon className='h-4 w-4' />
-              <span>{item.label}</span>
+              <Icon className='h-4 w-4 shrink-0' />
+              <span className='truncate'>{item.label}</span>
             </Link>
           );
         })}
@@ -72,8 +72,8 @@ function AgentButton() {
         onClick={() => setOpen(true)}
         className={cn(buttonBaseClass, 'text-primary hover:text-primary')}
       >
-        <Sparkles className='h-4 w-4' />
-        <span>Assistant</span>
+        <Sparkles className='h-4 w-4 shrink-0' />
+        <span className='truncate'>Assistant</span>
       </button>
       <VoiceAgentPanel open={open} onOpenChange={setOpen} agent={agent} />
     </>
