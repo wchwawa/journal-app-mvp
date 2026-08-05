@@ -82,7 +82,7 @@
     "eslint-config-next": "15.5.21",
     "input-otp": "^1.4.2",
     "jq": "^1.7.2",
-    "kbar": "^0.1.0-beta.45",
+    "kbar": "^0.1.0-beta.48",
     "lucide-react": "^0.476.0",
     "match-sorter": "^8.0.0",
     "motion": "^11.17.0",
