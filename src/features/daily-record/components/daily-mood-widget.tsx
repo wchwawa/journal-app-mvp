@@ -69,7 +69,7 @@ const DailyMoodWidgetComponent = () => {
         'focus-visible:ring-primary/40 focus-visible:ring-2 focus-visible:outline-none'
       )}
     >
-      <div className='relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-100 to-yellow-50 shadow-inner ring-1 ring-orange-200/50 dark:from-orange-900/30 dark:to-yellow-900/20 dark:ring-orange-700/30'>
+      <div className='relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#f6e3d3] to-[#fbf1e6] shadow-inner ring-1 ring-[#d97742]/30 dark:from-[#3a2417] dark:to-[#2b1c12] dark:ring-[#d97742]/30'>
         <AnimatePresence mode='wait'>
           <motion.span
             key={emoji}
@@ -85,7 +85,7 @@ const DailyMoodWidgetComponent = () => {
         </AnimatePresence>
       </div>
       <div className='relative flex flex-1 flex-col'>
-        <span className='text-foreground text-base font-semibold transition-colors group-hover:text-orange-600 dark:group-hover:text-orange-400'>
+        <span className='text-foreground text-base font-semibold transition-colors group-hover:text-[#d97742] dark:group-hover:text-[#e08d5f]'>
           {'Mood'}
         </span>
       </div>

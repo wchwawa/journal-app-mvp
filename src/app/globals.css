@@ -7,99 +7,79 @@
 @import './theme.css';
 
 :root {
-  --radius: 0.625rem;
-  /* Warm paper-like background inspired by Claude.ai (#f0eee5) */
-  --background: oklch(0.94 0.015 85);
-  /* Warm dark brown-gray text like Claude.ai (rgb(83, 81, 70)) */
-  --foreground: oklch(0.35 0.02 75);
-  /* Slightly warmer card background */
-  --card: oklch(0.97 0.01 80);
-  --card-foreground: oklch(0.35 0.02 75);
-  /* Warm popover background */
-  --popover: oklch(0.97 0.01 80);
-  --popover-foreground: oklch(0.35 0.02 75);
-  /* Primary color inspired by Claude's terra cotta (#b05730) */
-  --primary: oklch(0.5 0.12 35);
-  --primary-foreground: oklch(0.98 0.01 80);
-  /* Warm secondary colors */
-  --secondary: oklch(0.92 0.02 80);
-  --secondary-foreground: oklch(0.4 0.02 75);
-  /* Warm muted colors */
-  --muted: oklch(0.91 0.02 85);
-  --muted-foreground: oklch(0.55 0.02 75);
-  /* Warm accent colors */
-  --accent: oklch(0.92 0.02 80);
-  --accent-foreground: oklch(0.4 0.02 75);
-  /* Keep destructive red but with slight warmth */
-  --destructive: oklch(0.577 0.245 27.325);
-  /* Warm borders */
-  --border: oklch(0.88 0.015 80);
-  --input: oklch(0.88 0.015 80);
-  --ring: oklch(0.65 0.05 75);
-  /* Warmer chart colors */
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  /* Warm sidebar colors */
-  --sidebar: oklch(0.96 0.01 82);
-  --sidebar-foreground: oklch(0.35 0.02 75);
-  --sidebar-primary: oklch(0.5 0.12 35);
-  --sidebar-primary-foreground: oklch(0.98 0.01 80);
-  --sidebar-accent: oklch(0.92 0.02 80);
-  --sidebar-accent-foreground: oklch(0.4 0.02 75);
-  --sidebar-border: oklch(0.88 0.015 80);
-  --sidebar-ring: oklch(0.65 0.05 75);
+  /* NoKV brand system (nokv.io): warm cream surfaces, ink text, deep teal accent.
+     Card radius 12px, controls 8px, pills stay pill. */
+  --radius: 0.5rem;
+  --background: #faf9f4;
+  --foreground: #26251f;
+  --card: #f3f1e8;
+  --card-foreground: #26251f;
+  --popover: #fcfbf7;
+  --popover-foreground: #26251f;
+  --primary: #06657e;
+  --primary-foreground: #f5fbfd;
+  --secondary: #edebe0;
+  --secondary-foreground: #41403a;
+  --muted: #efede3;
+  --muted-foreground: #6b695e;
+  --accent: #e4eef0;
+  --accent-foreground: #06657e;
+  --destructive: #b3402e;
+  --border: #e2dfd2;
+  --input: #e2dfd2;
+  --ring: #0090b6;
+  --chart-1: #06657e;
+  --chart-2: #29c7e8;
+  --chart-3: #d97742;
+  --chart-4: #7a9b76;
+  --chart-5: #c4a35a;
+  --sidebar: #f3f1e8;
+  --sidebar-foreground: #26251f;
+  --sidebar-primary: #06657e;
+  --sidebar-primary-foreground: #f5fbfd;
+  --sidebar-accent: #e4eef0;
+  --sidebar-accent-foreground: #06657e;
+  --sidebar-border: #e2dfd2;
+  --sidebar-ring: #0090b6;
 }
 
 .dark {
-  /* Warm dark background like a cozy evening room */
-  --background: oklch(0.13 0.02 25);
-  /* Soft warm white for comfortable reading */
-  --foreground: oklch(0.9 0.015 50);
-  /* Slightly lighter warm cards for depth */
-  --card: oklch(0.18 0.02 30);
-  --card-foreground: oklch(0.9 0.015 50);
-  /* Warm popover backgrounds */
-  --popover: oklch(0.2 0.02 28);
-  --popover-foreground: oklch(0.9 0.015 50);
-  /* Therapeutic lavender-purple primary for trust and calm */
-  --primary: oklch(0.65 0.12 320);
-  --primary-foreground: oklch(0.95 0.01 45);
-  /* Warm secondary colors */
-  --secondary: oklch(0.22 0.02 35);
-  --secondary-foreground: oklch(0.85 0.02 50);
-  /* Muted warm tones */
-  --muted: oklch(0.2 0.015 30);
-  --muted-foreground: oklch(0.7 0.02 45);
-  /* Gentle accent colors */
-  --accent: oklch(0.25 0.03 40);
-  --accent-foreground: oklch(0.9 0.015 50);
-  /* Warm red for destructive actions */
-  --destructive: oklch(0.65 0.2 25);
-  /* Subtle warm borders */
-  --border: oklch(0.25 0.02 35);
-  --input: oklch(0.22 0.02 32);
-  --ring: oklch(0.6 0.08 320);
-  /* Harmonious warm chart colors */
-  --chart-1: oklch(0.65 0.12 320);
-  --chart-2: oklch(0.7 0.15 45);
-  --chart-3: oklch(0.6 0.18 200);
-  --chart-4: oklch(0.75 0.12 120);
-  --chart-5: oklch(0.68 0.2 15);
-  /* Warm sidebar colors */
-  --sidebar: oklch(0.16 0.02 28);
-  --sidebar-foreground: oklch(0.9 0.015 50);
-  --sidebar-primary: oklch(0.65 0.12 320);
-  --sidebar-primary-foreground: oklch(0.95 0.01 45);
-  --sidebar-accent: oklch(0.22 0.02 35);
-  --sidebar-accent-foreground: oklch(0.85 0.02 50);
-  --sidebar-border: oklch(0.25 0.02 35);
-  --sidebar-ring: oklch(0.6 0.08 320);
+  /* NoKV dark: navy-black from the wordmark (#080e13), ice text, cyan accent. */
+  --background: #0a121a;
+  --foreground: #e7eef4;
+  --card: #101b23;
+  --card-foreground: #e7eef4;
+  --popover: #132029;
+  --popover-foreground: #e7eef4;
+  --primary: #3bc6e4;
+  --primary-foreground: #04222c;
+  --secondary: #16232c;
+  --secondary-foreground: #c8d6de;
+  --muted: #142028;
+  --muted-foreground: #8fa1ac;
+  --accent: #14303a;
+  --accent-foreground: #7fdcef;
+  --destructive: #e0604c;
+  --border: #1c2a34;
+  --input: #1c2a34;
+  --ring: #29c7e8;
+  --chart-1: #3bc6e4;
+  --chart-2: #0090b6;
+  --chart-3: #d97742;
+  --chart-4: #7a9b76;
+  --chart-5: #c4a35a;
+  --sidebar: #101b23;
+  --sidebar-foreground: #e7eef4;
+  --sidebar-primary: #3bc6e4;
+  --sidebar-primary-foreground: #04222c;
+  --sidebar-accent: #14303a;
+  --sidebar-accent-foreground: #7fdcef;
+  --sidebar-border: #1c2a34;
+  --sidebar-ring: #29c7e8;
 }
 
 @theme inline {
+  --font-serif: var(--font-source-serif), Georgia, 'Times New Roman', serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

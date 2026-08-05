@@ -28,12 +28,13 @@ body {
 
 .theme-default,
 .theme-default-scaled {
-  --primary: var(--color-neutral-600);
-  --primary-foreground: var(--color-neutral-50);
+  /* Default theme = NoKV brand teal. */
+  --primary: #06657e;
+  --primary-foreground: #f5fbfd;
 
   @variant dark {
-    --primary: var(--color-neutral-500);
-    --primary-foreground: var(--color-neutral-50);
+    --primary: #3bc6e4;
+    --primary-foreground: #04222c;
   }
 }
 

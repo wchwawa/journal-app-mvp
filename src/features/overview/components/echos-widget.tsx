@@ -13,7 +13,7 @@ export default function EchosWidget() {
         className='pointer-events-none absolute inset-0 z-0 rounded-2xl opacity-0 blur-[3px] transition-opacity duration-500 group-hover:opacity-100'
         style={{
           background:
-            'linear-gradient(90deg, #FF6B9D 0%, #C239B3 15%, #7E3FF2 30%, #4B76FF 45%, #00C2FF 60%, #00E5BD 75%, #80FF72 90%, #FFD60A 100%)',
+            'linear-gradient(90deg, #06657e 0%, #0090b6 40%, #29c7e8 70%, #7fdcef 100%)',
           backgroundSize: '200% 100%',
           padding: '1px',
           mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
@@ -34,7 +34,7 @@ export default function EchosWidget() {
         className='pointer-events-none absolute -inset-[3px] z-0 rounded-2xl opacity-0 blur-[5px] transition-opacity duration-500 group-hover:opacity-70'
         style={{
           background:
-            'linear-gradient(135deg, #FF6B9D 0%, #C239B3 20%, #7E3FF2 40%, #4B76FF 60%, #00C2FF 80%, #00E5BD 100%)',
+            'linear-gradient(135deg, #06657e 0%, #0090b6 50%, #29c7e8 100%)',
           backgroundSize: '200% 200%'
         }}
         animate={{
@@ -62,8 +62,7 @@ export default function EchosWidget() {
         <motion.div
           className='relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full'
           style={{
-            background:
-              'linear-gradient(135deg, #FF6B9D 0%, #C239B3 25%, #7E3FF2 50%, #4B76FF 75%, #00C2FF 100%)'
+            background: 'linear-gradient(135deg, #0090b6 0%, #29c7e8 100%)'
           }}
           whileHover={{ rotate: 360 }}
           transition={{ duration: 0.6, ease: 'easeInOut' }}
@@ -74,7 +73,7 @@ export default function EchosWidget() {
         {/* Text with gradient on hover */}
         <div className='flex flex-1 flex-col'>
           <motion.span
-            className='from-foreground to-foreground bg-gradient-to-r bg-clip-text text-base font-semibold transition-all duration-300 group-hover:from-purple-600 group-hover:via-blue-500 group-hover:to-cyan-500 group-hover:text-transparent'
+            className='from-foreground to-foreground bg-gradient-to-r bg-clip-text text-base font-semibold transition-all duration-300 group-hover:from-[#0090b6] group-hover:to-[#29c7e8] group-hover:text-transparent'
             initial={false}
           >
             Echos
@@ -86,7 +85,7 @@ export default function EchosWidget() {
 
         {/* Animated arrow indicator */}
         <motion.svg
-          className='text-muted-foreground/50 h-4 w-4 shrink-0 transition-colors group-hover:text-purple-500'
+          className='text-muted-foreground/50 group-hover:text-primary h-4 w-4 shrink-0 transition-colors'
           fill='none'
           viewBox='0 0 24 24'
           stroke='currentColor'

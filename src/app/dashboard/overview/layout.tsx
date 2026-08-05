@@ -25,9 +25,11 @@ export default function OverViewLayout({
   }, []);
 
   return (
-    <PageContainer scrollable={false} className='p-0 pb-0 md:px-0'>
+    <PageContainer scrollable={false} className='max-w-none p-0 pb-0 md:px-0'>
       <DailyMoodModal ref={moodModalRef} />
-      <div key='overview-content'>{children}</div>
+      <div key='overview-content' className='flex w-full flex-1'>
+        {children}
+      </div>
     </PageContainer>
   );
 }

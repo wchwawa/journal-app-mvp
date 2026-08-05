@@ -13,12 +13,22 @@ export default function PageContainer({
 }) {
   return scrollable ? (
     <ScrollArea className='h-[calc(100dvh-52px)]'>
-      <div className={cn('flex flex-1 p-4 pb-24 md:px-6', className)}>
+      <div
+        className={cn(
+          'mx-auto flex w-full max-w-5xl flex-1 p-4 pb-24 md:px-6 lg:pt-8',
+          className
+        )}
+      >
         {children}
       </div>
     </ScrollArea>
   ) : (
-    <div className={cn('flex flex-1 p-4 pb-24 md:px-6', className)}>
+    <div
+      className={cn(
+        'mx-auto flex w-full max-w-5xl flex-1 p-4 pb-24 md:px-6 lg:pt-8',
+        className
+      )}
+    >
       {children}
     </div>
   );
