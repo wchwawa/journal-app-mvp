@@ -32,13 +32,16 @@ export default function Header() {
 
       <div className='min-w-0 flex-1' />
 
-      <div className='flex items-center gap-2'>
+      <div className='flex shrink-0 items-center gap-2'>
         <div className='hidden md:flex'>
           <SearchInput />
         </div>
         <UserNav />
         <ModeToggle />
-        <ThemeSelector />
+        {/* Too wide for phone headers; theme switching stays a desktop affordance. */}
+        <div className='hidden md:block'>
+          <ThemeSelector />
+        </div>
       </div>
     </header>
   );
