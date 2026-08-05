@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { getJournalsWithSummaries } from '@/lib/supabase/queries';
+import { getJournalRepo } from '@/lib/data';
 import { isTrustedOrigin } from '@/lib/security';
 
 type FiltersPayload = {
@@ -47,9 +46,45 @@ export async function POST(request: NextRequest) {
   };
 
   try {
-    const supabase = createAdminClient();
-    const result = await getJournalsWithSummaries(supabase, userId, options);
-    return NextResponse.json(result);
+    const repo = getJournalRepo();
+    const { days, totalCount } = await repo.queryJournalDays(userId, options);
+
+    // Map domain DayBundles back to the legacy wire shape the journal list UI
+    // expects: { ...summaryColumns, journals: [audioRow + transcripts], dailyMood }.
+    const data = days.map((day) => ({
+      ...(day.summary ?? { date: day.date }),
+      journals: day.entries.map((entry) => ({
+        id: entry.id,
+        user_id: userId,
+        // Domain entries no longer expose storage paths; key kept for wire
+        // compatibility only (no consumer reads it).
+        storage_path: '',
+        mime_type: entry.audio.mime_type,
+        duration_ms: entry.audio.duration_ms,
+        created_at: entry.created_at,
+        transcripts: [
+          {
+            id: entry.id,
+            text: entry.transcript.text,
+            rephrased_text: entry.transcript.rephrased_text,
+            language: entry.transcript.language,
+            created_at: entry.transcript.updated_at
+          }
+        ]
+      })),
+      dailyMood: day.mood
+        ? {
+            id: day.mood.id,
+            user_id: userId,
+            day_quality: day.mood.day_quality,
+            emotions: day.mood.emotions,
+            created_at: day.mood.created_at,
+            updated_at: day.mood.updated_at
+          }
+        : null
+    }));
+
+    return NextResponse.json({ data, totalCount });
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to fetch journals via API route', error);

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { z } from 'zod';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { getJournalRepo, NokvUnavailableError } from '@/lib/data';
+import type { DailySummary } from '@/lib/data';
 import { patchDailySchema } from '@/lib/reflections/schema';
 import { serializeDailyReflection } from '@/lib/reflections/serialize';
-import type { TablesUpdate } from '@/types/supabase';
+import type { Tables } from '@/types/supabase';
 import { isTrustedOrigin } from '@/lib/security';
 
 const paramsSchema = z.object({
@@ -32,61 +33,75 @@ export async function PATCH(
     const finalParams = paramsSchema.parse(await params);
     const payload = patchDailySchema.parse(await request.json());
 
-    const supabase = createAdminClient();
+    const repo = getJournalRepo();
 
-    const { data: existing, error: existingError } = await supabase
-      .from('daily_summaries')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('date', finalParams.date)
-      .single();
-
-    if (existingError) {
-      if (existingError.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Not found' }, { status: 404 });
-      }
+    let existing: DailySummary | null;
+    try {
+      existing = await repo.getDailySummary(userId, finalParams.date);
+    } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('Failed to fetch daily reflection', existingError);
+      console.error('Failed to fetch daily reflection', error);
       return NextResponse.json(
         { error: 'Failed to fetch reflection' },
         { status: 500 }
       );
     }
 
-    const updatePayload: TablesUpdate<'daily_summaries'> = {
-      edited: true,
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    const patch: Partial<
+      Pick<
+        DailySummary,
+        | 'achievements'
+        | 'commitments'
+        | 'mood_overall'
+        | 'mood_reason'
+        | 'flashback'
+        | 'gen_version'
+        | 'last_generated_at'
+      >
+    > = {
       last_generated_at: existing.last_generated_at,
       gen_version: existing.gen_version
     };
 
     if (payload.achievements !== undefined) {
-      updatePayload.achievements = payload.achievements;
+      patch.achievements = payload.achievements;
     }
 
     if (payload.commitments !== undefined) {
-      updatePayload.commitments = payload.commitments;
+      patch.commitments = payload.commitments;
     }
 
     if (payload.moodOverall !== undefined) {
-      updatePayload.mood_overall = payload.moodOverall;
+      patch.mood_overall = payload.moodOverall;
     }
 
     if (payload.moodReason !== undefined) {
-      updatePayload.mood_reason = payload.moodReason;
+      patch.mood_reason = payload.moodReason;
     }
 
     if (payload.flashback !== undefined) {
-      updatePayload.flashback = payload.flashback;
+      patch.flashback = payload.flashback;
     }
 
-    const { data, error } = await supabase
-      .from('daily_summaries')
-      .update(updatePayload)
-      .eq('id', existing.id)
-      .select()
-      .single();
-
-    if (error) {
+    let data: DailySummary;
+    try {
+      data = await repo.updateDailySummaryReflection(
+        userId,
+        finalParams.date,
+        patch,
+        { markEdited: true }
+      );
+    } catch (error) {
+      if (error instanceof NokvUnavailableError) {
+        return NextResponse.json(
+          { error: 'Data backend unavailable' },
+          { status: 503 }
+        );
+      }
       // eslint-disable-next-line no-console
       console.error('Failed to update daily reflection', error);
       return NextResponse.json(
@@ -97,7 +112,7 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      card: serializeDailyReflection(data)
+      card: serializeDailyReflection(data as Tables<'daily_summaries'>)
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

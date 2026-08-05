@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { z } from 'zod';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { getJournalRepo, NokvUnavailableError } from '@/lib/data';
+import type { PeriodReflection } from '@/lib/data';
 import { patchPeriodSchema } from '@/lib/reflections/schema';
 import { serializePeriodReflection } from '@/lib/reflections/serialize';
-import type { TablesUpdate } from '@/types/supabase';
+import type { Tables } from '@/types/supabase';
 import { isTrustedOrigin } from '@/lib/security';
 
 const paramsSchema = z.object({
@@ -32,61 +33,64 @@ export async function PATCH(
     const finalParams = paramsSchema.parse(await params);
     const payload = patchPeriodSchema.parse(await request.json());
 
-    const supabase = createAdminClient();
+    const repo = getJournalRepo();
 
-    const { data: existing, error: existingError } = await supabase
-      .from('period_reflections')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('id', finalParams.id)
-      .single();
-
-    if (existingError) {
-      if (existingError.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Not found' }, { status: 404 });
-      }
+    let existing: PeriodReflection | null;
+    try {
+      existing = await repo.getPeriodReflectionById(userId, finalParams.id);
+    } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('Failed to fetch period reflection', existingError);
+      console.error('Failed to fetch period reflection', error);
       return NextResponse.json(
         { error: 'Failed to fetch reflection' },
         { status: 500 }
       );
     }
 
-    const updatePayload: TablesUpdate<'period_reflections'> = {
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    const patch: Partial<PeriodReflection> = {
       edited: true,
       last_generated_at: existing.last_generated_at,
       gen_version: existing.gen_version
     };
 
     if (payload.achievements !== undefined) {
-      updatePayload.achievements = payload.achievements;
+      patch.achievements = payload.achievements;
     }
 
     if (payload.commitments !== undefined) {
-      updatePayload.commitments = payload.commitments;
+      patch.commitments = payload.commitments;
     }
 
     if (payload.moodOverall !== undefined) {
-      updatePayload.mood_overall = payload.moodOverall;
+      patch.mood_overall = payload.moodOverall;
     }
 
     if (payload.moodReason !== undefined) {
-      updatePayload.mood_reason = payload.moodReason;
+      patch.mood_reason = payload.moodReason;
     }
 
     if (payload.flashback !== undefined) {
-      updatePayload.flashback = payload.flashback;
+      patch.flashback = payload.flashback;
     }
 
-    const { data, error } = await supabase
-      .from('period_reflections')
-      .update(updatePayload)
-      .eq('id', existing.id)
-      .select()
-      .single();
-
-    if (error) {
+    let data: PeriodReflection;
+    try {
+      data = await repo.updatePeriodReflectionFields(
+        userId,
+        finalParams.id,
+        patch
+      );
+    } catch (error) {
+      if (error instanceof NokvUnavailableError) {
+        return NextResponse.json(
+          { error: 'Data backend unavailable' },
+          { status: 503 }
+        );
+      }
       // eslint-disable-next-line no-console
       console.error('Failed to update period reflection', error);
       return NextResponse.json(
@@ -97,7 +101,7 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      card: serializePeriodReflection(data)
+      card: serializePeriodReflection(data as Tables<'period_reflections'>)
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

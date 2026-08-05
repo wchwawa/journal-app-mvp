@@ -1,5 +1,10 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, Tables } from '@/types/supabase';
+import type { Tables } from '@/types/supabase';
+import type {
+  DailySummary,
+  JournalDataRepository,
+  MoodEntry,
+  PeriodReflection
+} from '@/lib/data';
 import { getLocalDayRange } from '@/lib/timezone';
 import { getPeriodBounds } from '@/lib/reflections/aggregate';
 
@@ -52,8 +57,6 @@ export interface ContextResponse {
   > | null;
 }
 
-type AdminClient = SupabaseClient<Database>;
-
 const pickRange = (scope: ContextScope, anchorDate?: string) => {
   if (scope === 'today') {
     const { date, start, end } = getLocalDayRange({
@@ -82,7 +85,7 @@ const pickRange = (scope: ContextScope, anchorDate?: string) => {
   };
 };
 
-const mapSummaries = (rows: Tables<'daily_summaries'>[]) =>
+const mapSummaries = (rows: DailySummary[]): ContextResponse['summaries'] =>
   rows.map((row) => ({
     id: row.id,
     date: row.date,
@@ -94,10 +97,12 @@ const mapSummaries = (rows: Tables<'daily_summaries'>[]) =>
     achievements: row.achievements,
     commitments: row.commitments,
     flashback: row.flashback,
-    stats: row.stats
+    stats: row.stats as Tables<'daily_summaries'>['stats']
   }));
 
-const mapReflections = (rows: Tables<'period_reflections'>[]) =>
+const mapReflections = (
+  rows: PeriodReflection[]
+): ContextResponse['reflections'] =>
   rows.map((row) => ({
     id: row.id,
     period_type: row.period_type,
@@ -108,11 +113,17 @@ const mapReflections = (rows: Tables<'period_reflections'>[]) =>
     mood_overall: row.mood_overall,
     mood_reason: row.mood_reason,
     flashback: row.flashback,
-    stats: row.stats
+    stats: row.stats as Tables<'period_reflections'>['stats']
   }));
 
+const mapMood = (mood: MoodEntry): ContextResponse['mood'] => ({
+  day_quality: mood.day_quality,
+  emotions: mood.emotions,
+  created_at: mood.created_at
+});
+
 export async function fetchUserContext(
-  client: AdminClient,
+  repo: JournalDataRepository,
   userId: string,
   payload: ContextRequest
 ): Promise<ContextResponse> {
@@ -126,28 +137,18 @@ export async function fetchUserContext(
   };
 
   if (payload.scope === 'recent') {
-    const { data } = await client
-      .from('daily_summaries')
-      .select('*')
-      .eq('user_id', userId)
-      .order('date', { ascending: false })
-      .limit(limit);
-
-    result.summaries = mapSummaries(data ?? []);
+    const summaries = await repo.listDailySummaries(userId, { limit });
+    result.summaries = mapSummaries(summaries);
     return result;
   }
 
   if (payload.scope === 'custom' && payload.range) {
-    const { data } = await client
-      .from('daily_summaries')
-      .select('*')
-      .eq('user_id', userId)
-      .gte('date', payload.range.start)
-      .lte('date', payload.range.end)
-      .order('date', { ascending: true })
-      .limit(limit);
-
-    result.summaries = mapSummaries(data ?? []);
+    const summaries = await repo.listDailySummariesInRange(
+      userId,
+      payload.range.start,
+      payload.range.end
+    );
+    result.summaries = mapSummaries(summaries.slice(0, limit));
     return result;
   }
 
@@ -155,75 +156,46 @@ export async function fetchUserContext(
   result.anchorDate = anchor;
 
   if (payload.scope === 'today') {
-    const { data: summaries } = await client
-      .from('daily_summaries')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('date', anchor)
-      .order('date', { ascending: true })
-      .limit(limit);
+    const summary = await repo.getDailySummary(userId, anchor);
+    result.summaries = mapSummaries(summary ? [summary] : []);
 
-    result.summaries = mapSummaries(summaries ?? []);
-
-    const { data: mood } = await client
-      .from('daily_question')
-      .select('day_quality, emotions, created_at')
-      .eq('user_id', userId)
-      .gte('created_at', start ?? `${anchor}T00:00:00Z`)
-      .lte('created_at', end ?? `${anchor}T23:59:59.999Z`)
-      .order('created_at', { ascending: false })
-      .maybeSingle();
-
-    result.mood = mood ?? null;
+    const mood = await repo.getMood(userId, anchor);
+    result.mood = mood ? mapMood(mood) : null;
     return result;
   }
 
   if (start && end) {
-    const { data: summaries } = await client
-      .from('daily_summaries')
-      .select('*')
-      .eq('user_id', userId)
-      .gte('date', start.slice(0, 10))
-      .lte('date', end.slice(0, 10))
-      .order('date', { ascending: true })
-      .limit(limit);
+    const rangeStart = start.slice(0, 10);
+    const rangeEnd = end.slice(0, 10);
 
-    result.summaries = mapSummaries(summaries ?? []);
+    const summaries = await repo.listDailySummariesInRange(
+      userId,
+      rangeStart,
+      rangeEnd
+    );
+    result.summaries = mapSummaries(summaries.slice(0, limit));
 
-    const { data: mood } = await client
-      .from('daily_question')
-      .select('day_quality, emotions, created_at')
-      .eq('user_id', userId)
-      .gte('created_at', start)
-      .lte('created_at', end)
-      .order('created_at', { ascending: false })
-      .maybeSingle();
-
-    result.mood = mood ?? null;
+    const moods = await repo.listMoodsInRange(userId, rangeStart, rangeEnd);
+    const latestMood = moods.length > 0 ? moods[moods.length - 1] : null;
+    result.mood = latestMood ? mapMood(latestMood) : null;
 
     if (payload.scope === 'week' || payload.scope === 'month') {
       const periodType = payload.scope === 'week' ? 'weekly' : 'monthly';
-      const { data: reflections } = await client
-        .from('period_reflections')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('period_type', periodType)
-        .eq('period_start', start.slice(0, 10))
-        .eq('period_end', end.slice(0, 10));
-
-      result.reflections = mapReflections(reflections ?? []);
+      const reflection = await repo.getPeriodReflection(
+        userId,
+        periodType,
+        rangeStart
+      );
+      result.reflections =
+        reflection && reflection.period_end === rangeEnd
+          ? mapReflections([reflection])
+          : [];
     }
 
     return result;
   }
 
-  const { data } = await client
-    .from('daily_summaries')
-    .select('*')
-    .eq('user_id', userId)
-    .order('date', { ascending: false })
-    .limit(limit);
-
-  result.summaries = mapSummaries(data ?? []);
+  const summaries = await repo.listDailySummaries(userId, { limit });
+  result.summaries = mapSummaries(summaries);
   return result;
 }

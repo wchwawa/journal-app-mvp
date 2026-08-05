@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import OpenAI from 'openai';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
+import { getJournalRepo, NokvUnavailableError } from '@/lib/data';
+import type { JournalEntry, MoodEntry } from '@/lib/data';
 import { syncReflectionsForDate } from '@/lib/reflections/sync';
 import { getLocalDayRange } from '@/lib/timezone';
 import { isTrustedOrigin } from '@/lib/security';
@@ -30,73 +31,39 @@ const ALLOWED_AUDIO_MIME_TYPES = new Set([
 ]);
 
 // Helper function to generate daily summary
-async function generateDailySummary(
-  userId: string,
-  supabase: any,
-  openaiClient: OpenAI
-) {
-  const {
-    date: currentDate,
-    start: dayStart,
-    end: dayEnd
-  } = getLocalDayRange();
+async function generateDailySummary(userId: string, openaiClient: OpenAI) {
+  const repo = getJournalRepo();
+  const { date: currentDate } = getLocalDayRange();
 
-  // Step 1: Get all transcripts for today
-  const { data: transcripts, error: transcriptsError } = await supabase
-    .from('transcripts')
-    .select(
-      `
-      id,
-      text,
-      rephrased_text,
-      created_at,
-      audio_files!inner(
-        created_at
-      )
-    `
-    )
-    .eq('user_id', userId)
-    .gte('audio_files.created_at', dayStart)
-    .lte('audio_files.created_at', dayEnd)
-    .order('created_at', { ascending: true });
+  // Step 1: Get all journal entries for today
+  const entries = await repo.listEntriesForDay(userId, currentDate);
 
-  if (transcriptsError) {
-    // eslint-disable-next-line no-console
-    console.error('Error fetching transcripts for summary:', transcriptsError);
-    throw transcriptsError;
-  }
-
-  if (!transcripts || transcripts.length === 0) {
+  if (entries.length === 0) {
     return;
   }
 
-  // Step 2: Get daily mood data
-  const { data: moodData, error: moodError } = await supabase
-    .from('daily_question')
-    .select('day_quality, emotions')
-    .eq('user_id', userId)
-    .gte('created_at', dayStart)
-    .lte('created_at', dayEnd)
-    .single();
-
-  if (moodError && moodError.code !== 'PGRST116') {
+  // Step 2: Get daily mood data (non-fatal when unavailable)
+  let mood: MoodEntry | null = null;
+  try {
+    mood = await repo.getMood(userId, currentDate);
+  } catch (moodError) {
     // eslint-disable-next-line no-console
     console.error('Error fetching mood data for summary:', moodError);
   }
 
   // Step 3: Generate summary using GPT-4o
-  const journalTexts = transcripts
-    .map((t: any, index: number) => {
-      const time = new Date(t.created_at!).toLocaleTimeString('en-US', {
+  const journalTexts = entries
+    .map((entry, index) => {
+      const time = new Date(entry.created_at).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit'
       });
-      return `Entry ${index + 1} (${time}): ${t.rephrased_text || t.text}`;
+      return `Entry ${index + 1} (${time}): ${entry.transcript.rephrased_text || entry.transcript.text}`;
     })
     .join('\n\n');
 
-  const moodContext = moodData
-    ? `\nToday's mood: ${moodData.day_quality}, feeling ${moodData.emotions.join(', ')}.`
+  const moodContext = mood
+    ? `\nToday's mood: ${mood.day_quality}, feeling ${mood.emotions.join(', ')}.`
     : '';
 
   const summaryResponse = await openaiClient.chat.completions.create({
@@ -105,7 +72,7 @@ async function generateDailySummary(
       {
         role: 'system',
         content: `You are a thoughtful journal assistant that creates concise daily summaries.
-                 
+
                  Your task is to:
                  - Synthesize multiple journal entries into a coherent daily narrative
                  - Maintain first-person perspective throughout
@@ -114,7 +81,7 @@ async function generateDailySummary(
                  - Keep the summary between 3-5 sentences
                  - Make it reflective and meaningful
                  - Consider the overall mood context if provided
-                 
+
                  The summary should read like a thoughtful reflection on the day, not just a list of events.`
       },
       {
@@ -128,31 +95,12 @@ async function generateDailySummary(
   const summary = summaryResponse.choices[0]?.message?.content || '';
 
   // Step 4: Upsert daily summary
-  const { data: summaryData, error: summaryError } = await supabase
-    .from('daily_summaries')
-    .upsert(
-      {
-        user_id: userId,
-        date: currentDate,
-        summary: summary,
-        entry_count: transcripts.length,
-        mood_quality: moodData?.day_quality || null,
-        dominant_emotions: moodData?.emotions || null,
-        updated_at: new Date().toISOString()
-      },
-      {
-        onConflict: 'user_id,date'
-      }
-    )
-    .select()
-    .single();
-
-  if (summaryError) {
-    // eslint-disable-next-line no-console
-    console.error('Error saving summary:', summaryError);
-    throw summaryError;
-  }
-  return summaryData;
+  return repo.upsertDailySummary(userId, currentDate, {
+    summary,
+    entryCount: entries.length,
+    moodQuality: mood?.day_quality || null,
+    dominantEmotions: mood?.emotions || []
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -217,7 +165,7 @@ export async function POST(request: NextRequest) {
         {
           role: 'system',
           content: `You are a helpful assistant that transforms spoken journal entries into polished first-person summaries.
-                   
+
                    Your task is to:
                    - Write ENTIRELY in first-person perspective (I, me, my)
                    - Remove ALL filler words, speech disfluencies (um, uh, like, you know)
@@ -227,7 +175,7 @@ export async function POST(request: NextRequest) {
                    - Structure thoughts coherently and logically
                    - Keep the personal, reflective tone
                    - Aim for 3-5 sentences that capture the essence
-                   
+
                    Transform the raw transcript into what the person would write if they were journaling directly.`
         },
         {
@@ -240,84 +188,40 @@ export async function POST(request: NextRequest) {
 
     const rephrasedText = summaryResponse.choices[0]?.message?.content || '';
 
-    // Step 3: Store audio file in Supabase Storage
-    const supabase = createAdminClient();
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileName = `journal-audio/${userId}/${timestamp}-recording.webm`;
-
-    const audioBuffer = await audioFile.arrayBuffer();
-    const { data: storageData, error: storageError } = await supabase.storage
-      .from('audio-files')
-      .upload(fileName, audioBuffer, {
-        contentType: audioFile.type,
-        upsert: false
+    // Step 3: Persist audio + transcript through the data repository
+    const repo = getJournalRepo();
+    let entry: JournalEntry;
+    try {
+      entry = await repo.createEntry(userId, {
+        audio: Buffer.from(await audioFile.arrayBuffer()),
+        mimeType: audioFile.type,
+        transcript: transcription,
+        rephrasedText: rephrasedText,
+        language: 'en'
       });
-
-    if (storageError) {
+    } catch (persistError) {
+      if (persistError instanceof NokvUnavailableError) {
+        return NextResponse.json(
+          { error: 'Data backend temporarily unavailable' },
+          { status: 503 }
+        );
+      }
       // eslint-disable-next-line no-console
-      console.error('Storage error:', storageError);
+      console.error('Entry persistence error:', persistError);
       return NextResponse.json(
-        { error: 'Failed to store audio file' },
+        { error: 'Failed to save journal entry' },
         { status: 500 }
       );
     }
 
-    // Step 4: Save audio file metadata
-    const { data: audioFileData, error: audioFileError } = await supabase
-      .from('audio_files')
-      .insert({
-        user_id: userId,
-        storage_path: storageData.path,
-        mime_type: audioFile.type,
-        duration_ms: null // Could be calculated from audio if needed
-      })
-      .select()
-      .single();
-
-    if (audioFileError) {
-      // eslint-disable-next-line no-console
-      console.error('Audio file DB error:', audioFileError);
-      return NextResponse.json(
-        { error: 'Failed to save audio metadata' },
-        { status: 500 }
-      );
-    }
-
-    // Step 5: Save transcript with rephrased text
-    const { data: transcriptData, error: transcriptError } = await supabase
-      .from('transcripts')
-      .insert({
-        user_id: userId,
-        audio_id: audioFileData.id,
-        text: transcription,
-        rephrased_text: rephrasedText,
-        language: 'en' // Could be detected from Whisper if neededs
-      })
-      .select()
-      .single();
-
-    if (transcriptError) {
-      // eslint-disable-next-line no-console
-      console.error('Transcript DB error:', transcriptError);
-      return NextResponse.json(
-        { error: 'Failed to save transcript' },
-        { status: 500 }
-      );
-    }
-
-    // Step 6: Daily summary + echos sync after the response is sent.
+    // Step 4: Daily summary + echos sync after the response is sent.
     // after() is guaranteed to run on serverless, unlike a floating promise
     // which is dropped when the instance freezes post-response.
     after(async () => {
       try {
-        const summaryData = await generateDailySummary(
-          userId,
-          supabase,
-          openai
-        );
+        const summaryData = await generateDailySummary(userId, openai);
         if (summaryData?.date) {
           await syncReflectionsForDate({
-            supabase,
             openai,
             userId,
             anchorDate: summaryData.date
@@ -334,8 +238,8 @@ export async function POST(request: NextRequest) {
       success: true,
       transcription,
       rephrasedText,
-      audioFileId: audioFileData.id,
-      transcriptId: transcriptData.id
+      audioFileId: entry.id,
+      transcriptId: entry.id
     });
   } catch (error) {
     // eslint-disable-next-line no-console

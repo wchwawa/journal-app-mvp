@@ -1,13 +1,14 @@
 import { addDays, endOfMonth, startOfMonth } from 'date-fns';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, Tables } from '@/types/supabase';
+import type {
+  DailySummary,
+  JournalDataRepository,
+  MoodEntry
+} from '@/lib/data';
 import type { ReflectionMode } from './types';
 
-type AdminClient = SupabaseClient<Database>;
-
 export interface DailyAggregate {
-  summary: Tables<'daily_summaries'>;
-  mood?: Tables<'daily_question'> | null;
+  summary: DailySummary;
+  mood?: MoodEntry | null;
 }
 
 // Format a Date as YYYY-MM-DD in LOCAL time (do not convert to UTC)
@@ -51,35 +52,28 @@ export const getPeriodBounds = (
 };
 
 export async function fetchDailyAggregate(
-  client: AdminClient,
+  repo: JournalDataRepository,
   userId: string,
   date: string
 ): Promise<DailyAggregate | null> {
-  const { data: summary, error: summaryError } = await client
-    .from('daily_summaries')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('date', date)
-    .maybeSingle();
-
-  if (summaryError) {
-    console.error('Failed to fetch daily summary', summaryError);
-    throw summaryError;
+  let summary: DailySummary | null;
+  try {
+    summary = await repo.getDailySummary(userId, date);
+  } catch (error) {
+    console.error('Failed to fetch daily summary', error);
+    throw error;
   }
 
   if (!summary) return null;
 
-  const { data: mood, error: moodError } = await client
-    .from('daily_question')
-    .select('*')
-    .eq('user_id', userId)
-    .gte('created_at', `${date}T00:00:00`)
-    .lte('created_at', `${date}T23:59:59.999`)
-    .maybeSingle();
-
-  if (moodError && moodError.code !== 'PGRST116') {
-    console.error('Failed to fetch daily mood', moodError);
-    throw moodError;
+  let mood: MoodEntry | null;
+  try {
+    // Day boundaries resolved through timezone.ts inside the repository
+    // (replaces the previous bare `${date}T00:00:00` bounds).
+    mood = await repo.getMood(userId, date);
+  } catch (error) {
+    console.error('Failed to fetch daily mood', error);
+    throw error;
   }
 
   return {
@@ -89,44 +83,34 @@ export async function fetchDailyAggregate(
 }
 
 export async function fetchAggregatesInRange(
-  client: AdminClient,
+  repo: JournalDataRepository,
   userId: string,
   start: string,
   end: string
 ): Promise<DailyAggregate[]> {
-  const { data: summaries, error: summariesError } = await client
-    .from('daily_summaries')
-    .select('*')
-    .eq('user_id', userId)
-    .gte('date', start)
-    .lte('date', end)
-    .order('date', { ascending: true });
-
-  if (summariesError) {
-    console.error('Failed to fetch summaries range', summariesError);
-    throw summariesError;
+  let summaries: DailySummary[];
+  try {
+    summaries = await repo.listDailySummariesInRange(userId, start, end);
+  } catch (error) {
+    console.error('Failed to fetch summaries range', error);
+    throw error;
   }
 
-  if (!summaries || summaries.length === 0) {
+  if (summaries.length === 0) {
     return [];
   }
 
-  const { data: moods, error: moodsError } = await client
-    .from('daily_question')
-    .select('*')
-    .eq('user_id', userId)
-    .gte('created_at', `${start}T00:00:00`)
-    .lte('created_at', `${end}T23:59:59.999`);
-
-  if (moodsError && moodsError.code !== 'PGRST116') {
-    console.error('Failed to fetch moods range', moodsError);
-    throw moodsError;
+  let moods: MoodEntry[];
+  try {
+    moods = await repo.listMoodsInRange(userId, start, end);
+  } catch (error) {
+    console.error('Failed to fetch moods range', error);
+    throw error;
   }
 
-  const moodMap = new Map<string, Tables<'daily_question'>>();
-  moods?.forEach((mood) => {
-    const key = localYmd(new Date(mood.created_at ?? `${start}T00:00:00`));
-    moodMap.set(key, mood);
+  const moodMap = new Map<string, MoodEntry>();
+  moods.forEach((mood) => {
+    moodMap.set(mood.date, mood);
   });
 
   return summaries.map((summary) => ({

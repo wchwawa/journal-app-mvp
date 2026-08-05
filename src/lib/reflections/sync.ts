@@ -1,32 +1,22 @@
 import OpenAI from 'openai';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/supabase';
+import { getJournalRepo } from '@/lib/data';
 import { generateReflection } from './generator';
 import type { ReflectionMode } from './types';
 
-type AdminClient = SupabaseClient<Database>;
+const SYNC_MODES: ReflectionMode[] = ['daily', 'weekly', 'monthly'];
 
-const DEFAULT_MODES: ReflectionMode[] = ['daily', 'weekly', 'monthly'];
-
-interface SyncOptions {
-  supabase: AdminClient;
+export async function syncReflectionsForDate(opts: {
   openai: OpenAI;
   userId: string;
   anchorDate: string;
-  modes?: ReflectionMode[];
-}
+}): Promise<void> {
+  const { openai, userId, anchorDate } = opts;
+  const repo = getJournalRepo();
 
-export async function syncReflectionsForDate({
-  supabase,
-  openai,
-  userId,
-  anchorDate,
-  modes = DEFAULT_MODES
-}: SyncOptions) {
-  for (const mode of modes) {
+  for (const mode of SYNC_MODES) {
     try {
       await generateReflection({
-        supabase,
+        repo,
         openai,
         userId,
         mode,

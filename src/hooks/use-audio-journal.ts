@@ -2,22 +2,26 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { createClient } from '@/lib/supabase/client';
-import {
-  getTodayAudioJournals,
-  getRecentAudioJournals,
-  getAudioJournalStats
-} from '@/lib/supabase/queries';
-import type { Tables } from '@/types/supabase';
 
-type AudioJournalWithTranscript = Tables<'audio_files'> & {
-  transcripts: {
-    id: string;
-    text: string | null;
-    language: string | null;
-    created_at: string | null;
-  }[];
-};
+// Wire shape returned by GET /api/journals/today (mirrors the audio_files +
+// transcripts rows the browser previously read from Supabase directly).
+interface AudioJournalTranscript {
+  id: string;
+  text: string | null;
+  rephrased_text: string | null;
+  language: string | null;
+  created_at: string | null;
+}
+
+interface AudioJournalWithTranscript {
+  id: string;
+  user_id: string;
+  storage_path: string;
+  mime_type: string | null;
+  duration_ms: number | null;
+  created_at: string | null;
+  transcripts: AudioJournalTranscript[];
+}
 
 interface AudioJournalStats {
   totalEntries: number;
@@ -31,11 +35,6 @@ interface UseAudioJournalReturn {
   todayLoading: boolean;
   todayError: string | null;
 
-  // Recent entries
-  recentEntries: AudioJournalWithTranscript[];
-  recentLoading: boolean;
-  recentError: string | null;
-
   // Stats
   stats: AudioJournalStats;
   statsLoading: boolean;
@@ -44,13 +43,11 @@ interface UseAudioJournalReturn {
   // Actions
   refetchAll: () => Promise<void>;
   refetchToday: () => Promise<void>;
-  refetchRecent: () => Promise<void>;
   refetchStats: () => Promise<void>;
 }
 
 export function useAudioJournal(): UseAudioJournalReturn {
   const { user } = useUser();
-  const supabase = createClient();
 
   // Today's entries state
   const [todayEntries, setTodayEntries] = useState<
@@ -58,13 +55,6 @@ export function useAudioJournal(): UseAudioJournalReturn {
   >([]);
   const [todayLoading, setTodayLoading] = useState(true);
   const [todayError, setTodayError] = useState<string | null>(null);
-
-  // Recent entries state
-  const [recentEntries, setRecentEntries] = useState<
-    AudioJournalWithTranscript[]
-  >([]);
-  const [recentLoading, setRecentLoading] = useState(true);
-  const [recentError, setRecentError] = useState<string | null>(null);
 
   // Stats state
   const [stats, setStats] = useState<AudioJournalStats>({
@@ -85,8 +75,14 @@ export function useAudioJournal(): UseAudioJournalReturn {
 
     try {
       setTodayError(null);
-      const entries = await getTodayAudioJournals(supabase, user.id);
-      setTodayEntries(entries);
+      const response = await fetch('/api/journals/today');
+      if (!response.ok) {
+        throw new Error('Failed to fetch today audio entries');
+      }
+      const payload = (await response.json()) as {
+        entries: AudioJournalWithTranscript[];
+      };
+      setTodayEntries(payload.entries);
     } catch (err) {
       console.error('Error fetching today audio entries:', err);
       setTodayError(
@@ -97,31 +93,7 @@ export function useAudioJournal(): UseAudioJournalReturn {
     } finally {
       setTodayLoading(false);
     }
-  }, [user?.id, supabase]);
-
-  // Fetch recent entries
-  const fetchRecentEntries = useCallback(async () => {
-    if (!user?.id) {
-      setRecentEntries([]);
-      setRecentLoading(false);
-      return;
-    }
-
-    try {
-      setRecentError(null);
-      const entries = await getRecentAudioJournals(supabase, user.id, 10);
-      setRecentEntries(entries);
-    } catch (err) {
-      console.error('Error fetching recent audio entries:', err);
-      setRecentError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to fetch recent audio entries'
-      );
-    } finally {
-      setRecentLoading(false);
-    }
-  }, [user?.id, supabase]);
+  }, [user?.id]);
 
   // Fetch stats
   const fetchStats = useCallback(async () => {
@@ -133,8 +105,12 @@ export function useAudioJournal(): UseAudioJournalReturn {
 
     try {
       setStatsError(null);
-      const statsData = await getAudioJournalStats(supabase, user.id);
-      setStats(statsData);
+      const response = await fetch('/api/journals/stats');
+      if (!response.ok) {
+        throw new Error('Failed to fetch audio journal stats');
+      }
+      const payload = (await response.json()) as { stats: AudioJournalStats };
+      setStats(payload.stats);
     } catch (err) {
       console.error('Error fetching audio journal stats:', err);
       setStatsError(
@@ -145,18 +121,13 @@ export function useAudioJournal(): UseAudioJournalReturn {
     } finally {
       setStatsLoading(false);
     }
-  }, [user?.id, supabase]);
+  }, [user?.id]);
 
   // Refetch functions
   const refetchToday = useCallback(async () => {
     setTodayLoading(true);
     await fetchTodayEntries();
   }, [fetchTodayEntries]);
-
-  const refetchRecent = useCallback(async () => {
-    setRecentLoading(true);
-    await fetchRecentEntries();
-  }, [fetchRecentEntries]);
 
   const refetchStats = useCallback(async () => {
     setStatsLoading(true);
@@ -165,22 +136,16 @@ export function useAudioJournal(): UseAudioJournalReturn {
 
   const refetchAll = useCallback(async () => {
     setTodayLoading(true);
-    setRecentLoading(true);
     setStatsLoading(true);
 
-    await Promise.all([
-      fetchTodayEntries(),
-      fetchRecentEntries(),
-      fetchStats()
-    ]);
-  }, [fetchTodayEntries, fetchRecentEntries, fetchStats]);
+    await Promise.all([fetchTodayEntries(), fetchStats()]);
+  }, [fetchTodayEntries, fetchStats]);
 
   // Initial fetch
   useEffect(() => {
     fetchTodayEntries();
-    fetchRecentEntries();
     fetchStats();
-  }, [fetchTodayEntries, fetchRecentEntries, fetchStats]);
+  }, [fetchTodayEntries, fetchStats]);
 
   // Listen for audio journal updates
   useEffect(() => {
@@ -201,15 +166,11 @@ export function useAudioJournal(): UseAudioJournalReturn {
     todayEntries,
     todayLoading,
     todayError,
-    recentEntries,
-    recentLoading,
-    recentError,
     stats,
     statsLoading,
     statsError,
     refetchAll,
     refetchToday,
-    refetchRecent,
     refetchStats
   };
 }

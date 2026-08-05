@@ -35,7 +35,7 @@ const makeAggregate = (
   },
   mood: {
     id: `mood-${date}`,
-    user_id: 'user-1',
+    date,
     day_quality: 'good',
     emotions: moodEmotions,
     created_at: `${date}T08:00:00Z`,

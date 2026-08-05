@@ -1,6 +1,9 @@
 import OpenAI from 'openai';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/supabase';
+import type {
+  DailySummary,
+  JournalDataRepository,
+  PeriodReflection
+} from '@/lib/data';
 import {
   countEmotions,
   fetchAggregatesInRange,
@@ -11,12 +14,10 @@ import {
 import type { DailyAggregate } from './aggregate';
 import { reflectionAISchema } from './schema';
 import type { ReflectionCard, ReflectionMode } from './types';
-import type { Json, TablesInsert, TablesUpdate } from '@/types/supabase';
-
-type AdminClient = SupabaseClient<Database>;
+import type { Json } from '@/types/supabase';
 
 interface GenerateOptions {
-  supabase: AdminClient;
+  repo: JournalDataRepository;
   openai: OpenAI;
   userId: string;
   mode: ReflectionMode;
@@ -160,7 +161,7 @@ const SYSTEM_PROMPT = `You are an empathetic journaling coach. Respond strictly 
 }`;
 
 export async function generateReflection({
-  supabase,
+  repo,
   openai,
   userId,
   mode,
@@ -170,7 +171,7 @@ export async function generateReflection({
   const bounds = getPeriodBounds(mode, resolvedDate);
 
   if (mode === 'daily') {
-    const dailyData = await fetchDailyAggregate(supabase, userId, resolvedDate);
+    const dailyData = await fetchDailyAggregate(repo, userId, resolvedDate);
 
     if (!dailyData) {
       throw new Error('No daily summary found for date');
@@ -178,7 +179,7 @@ export async function generateReflection({
 
     const contextText = buildContextForDaily(dailyData);
     const aggregates = await fetchAggregatesInRange(
-      supabase,
+      repo,
       userId,
       bounds.start,
       bounds.end
@@ -223,33 +224,27 @@ export async function generateReflection({
       topEmotions: countEmotions(aggregates)
     };
 
-    const shouldPreserve = existing.edited ?? false;
-
-    const updatePayload: TablesUpdate<'daily_summaries'> = {
-      achievements: shouldPreserve
-        ? (existing.achievements ?? [])
-        : parsed.achievements,
-      commitments: shouldPreserve
-        ? (existing.commitments ?? [])
-        : parsed.commitments,
-      mood_overall: shouldPreserve
-        ? existing.mood_overall
-        : parsed.mood.overall,
-      mood_reason: shouldPreserve ? existing.mood_reason : parsed.mood.reason,
-      flashback: shouldPreserve ? existing.flashback : parsed.flashback,
-      stats: cleanStats(stats),
-      gen_version: GEN_VERSION,
-      last_generated_at: new Date().toISOString()
-    };
-
-    const { data, error } = await supabase
-      .from('daily_summaries')
-      .update(updatePayload)
-      .eq('id', existing.id)
-      .select()
-      .single();
-
-    if (error) {
+    // preserveIfEdited keeps the user-edited fields (achievements,
+    // commitments, mood_overall, mood_reason, flashback) untouched when
+    // existing.edited is true, matching the previous inline logic.
+    let data: DailySummary;
+    try {
+      data = await repo.updateDailySummaryReflection(
+        userId,
+        resolvedDate,
+        {
+          achievements: parsed.achievements,
+          commitments: parsed.commitments,
+          mood_overall: parsed.mood.overall,
+          mood_reason: parsed.mood.reason,
+          flashback: parsed.flashback,
+          stats: cleanStats(stats),
+          gen_version: GEN_VERSION,
+          last_generated_at: new Date().toISOString()
+        },
+        { preserveIfEdited: true }
+      );
+    } catch (error) {
       console.error('Failed to update daily reflection', error);
       throw error;
     }
@@ -275,7 +270,7 @@ export async function generateReflection({
   }
 
   const aggregates = await fetchAggregatesInRange(
-    supabase,
+    repo,
     userId,
     bounds.start,
     bounds.end
@@ -330,17 +325,12 @@ export async function generateReflection({
     throw err;
   }
 
-  const { data: existing, error: existingError } = await supabase
-    .from('period_reflections')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('period_type', mode)
-    .eq('period_start', bounds.start)
-    .maybeSingle();
-
-  if (existingError) {
-    console.error('Failed to fetch period reflection', existingError);
-    throw existingError;
+  let existing: PeriodReflection | null;
+  try {
+    existing = await repo.getPeriodReflection(userId, mode, bounds.start);
+  } catch (error) {
+    console.error('Failed to fetch period reflection', error);
+    throw error;
   }
 
   const shouldPreserve = existing?.edited ?? false;
@@ -353,11 +343,9 @@ export async function generateReflection({
     topEmotions: countEmotions(aggregates)
   };
 
-  const upsertPayload: TablesInsert<'period_reflections'> = {
-    user_id: userId,
-    period_type: mode,
-    period_start: bounds.start,
-    period_end: bounds.end,
+  // Edited reflections keep their user-authored fields; only stats and
+  // generation metadata are refreshed (same semantics as before).
+  const upsertFields: Partial<PeriodReflection> = {
     achievements: shouldPreserve
       ? (existing?.achievements ?? [])
       : parsed.achievements,
@@ -379,13 +367,16 @@ export async function generateReflection({
     edited: existing?.edited ?? false
   };
 
-  const { data, error } = await supabase
-    .from('period_reflections')
-    .upsert(upsertPayload, { onConflict: 'user_id,period_type,period_start' })
-    .select()
-    .single();
-
-  if (error) {
+  let data: PeriodReflection;
+  try {
+    data = await repo.upsertPeriodReflection(
+      userId,
+      mode,
+      bounds.start,
+      bounds.end,
+      upsertFields
+    );
+  } catch (error) {
     console.error('Failed to upsert period reflection', error);
     throw error;
   }

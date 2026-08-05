@@ -2,12 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { createClient } from '@/lib/supabase/client';
-import { getTodayMoodEntry } from '@/lib/supabase/queries';
-import type { Tables } from '@/types/supabase';
+import type { MoodEntry } from '@/lib/data/repository';
 
 interface UseTodayMoodReturn {
-  moodEntry: Tables<'daily_question'> | null;
+  moodEntry: MoodEntry | null;
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -15,13 +13,9 @@ interface UseTodayMoodReturn {
 
 export function useTodayMood(): UseTodayMoodReturn {
   const { user } = useUser();
-  const [moodEntry, setMoodEntry] = useState<Tables<'daily_question'> | null>(
-    null
-  );
+  const [moodEntry, setMoodEntry] = useState<MoodEntry | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const supabase = createClient();
 
   const fetchMoodEntry = useCallback(async () => {
     if (!user?.id) {
@@ -32,8 +26,12 @@ export function useTodayMood(): UseTodayMoodReturn {
 
     try {
       setError(null);
-      const entry = await getTodayMoodEntry(supabase, user.id);
-      setMoodEntry(entry);
+      const response = await fetch('/api/mood/today');
+      if (!response.ok) {
+        throw new Error('Failed to fetch mood entry');
+      }
+      const payload = (await response.json()) as { mood: MoodEntry | null };
+      setMoodEntry(payload.mood);
     } catch (err) {
       console.error('Error fetching mood entry:', err);
       setError(
@@ -42,7 +40,7 @@ export function useTodayMood(): UseTodayMoodReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, supabase]);
+  }, [user?.id]);
 
   const refetch = useCallback(async () => {
     setIsLoading(true);

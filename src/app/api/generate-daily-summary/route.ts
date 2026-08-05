@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import OpenAI from 'openai';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { auth } from '@clerk/nextjs/server';
+import { getJournalRepo, NokvUnavailableError } from '@/lib/data';
+import type { DailySummary, JournalEntry, MoodEntry } from '@/lib/data';
 import { syncReflectionsForDate } from '@/lib/reflections/sync';
-import { getUtcRangeForDate } from '@/lib/timezone';
 import { isTrustedOrigin } from '@/lib/security';
 import { SUMMARY_MODEL } from '@/lib/ai/models';
 
@@ -41,70 +41,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createAdminClient();
-    const { start: dayStart, end: dayEnd } = getUtcRangeForDate(date);
+    const repo = getJournalRepo();
 
-    const { data: transcripts, error: transcriptsError } = await supabase
-      .from('transcripts')
-      .select(
-        `
-        id,
-        text,
-        rephrased_text,
-        created_at,
-        audio_files!inner(
-          created_at
-        )
-      `
-      )
-      .eq('user_id', userId)
-      .gte('audio_files.created_at', dayStart)
-      .lte('audio_files.created_at', dayEnd)
-      .order('created_at', { ascending: true });
-
-    if (transcriptsError) {
+    // Step 1: Get all journal entries for the requested date
+    let entries: JournalEntry[];
+    try {
+      entries = await repo.listEntriesForDay(userId, date);
+    } catch (entriesError) {
       // eslint-disable-next-line no-console
-      console.error('Error fetching transcripts:', transcriptsError);
+      console.error('Error fetching transcripts:', entriesError);
       return NextResponse.json(
         { error: 'Failed to fetch transcripts' },
         { status: 500 }
       );
     }
 
-    if (!transcripts || transcripts.length === 0) {
+    if (entries.length === 0) {
       return NextResponse.json({
         success: true,
         message: 'No journal entries found for this date'
       });
     }
 
-    // Step 2: Get daily mood data
-    const { data: moodData, error: moodError } = await supabase
-      .from('daily_question')
-      .select('day_quality, emotions')
-      .eq('user_id', userId)
-      .gte('created_at', dayStart)
-      .lte('created_at', dayEnd)
-      .single();
-
-    if (moodError && moodError.code !== 'PGRST116') {
+    // Step 2: Get daily mood data (non-fatal when unavailable)
+    let mood: MoodEntry | null = null;
+    try {
+      mood = await repo.getMood(userId, date);
+    } catch (moodError) {
       // eslint-disable-next-line no-console
       console.error('Error fetching mood data:', moodError);
     }
 
     // Step 3: Generate summary using GPT-4o
-    const journalTexts = transcripts
-      .map((t, index) => {
-        const time = new Date(t.created_at!).toLocaleTimeString('en-US', {
+    const journalTexts = entries
+      .map((entry, index) => {
+        const time = new Date(entry.created_at).toLocaleTimeString('en-US', {
           hour: '2-digit',
           minute: '2-digit'
         });
-        return `Entry ${index + 1} (${time}): ${t.rephrased_text || t.text}`;
+        return `Entry ${index + 1} (${time}): ${entry.transcript.rephrased_text || entry.transcript.text}`;
       })
       .join('\n\n');
 
-    const moodContext = moodData
-      ? `\nToday's mood: ${moodData.day_quality}, feeling ${moodData.emotions.join(', ')}.`
+    const moodContext = mood
+      ? `\nToday's mood: ${mood.day_quality}, feeling ${mood.emotions.join(', ')}.`
       : '';
 
     const summaryResponse = await openai.chat.completions.create({
@@ -113,7 +93,7 @@ export async function POST(request: NextRequest) {
         {
           role: 'system',
           content: `You are a thoughtful journal assistant that creates concise daily summaries.
-                   
+
                    Your task is to:
                    - Synthesize multiple journal entries into a coherent daily narrative
                    - Maintain first-person perspective throughout
@@ -122,7 +102,7 @@ export async function POST(request: NextRequest) {
                    - Keep the summary between 3-5 sentences
                    - Make it reflective and meaningful
                    - Consider the overall mood context if provided
-                   
+
                    The summary should read like a thoughtful reflection on the day, not just a list of events.`
         },
         {
@@ -136,26 +116,21 @@ export async function POST(request: NextRequest) {
     const summary = summaryResponse.choices[0]?.message?.content || '';
 
     // Step 4: Upsert daily summary
-    const { data: summaryData, error: summaryError } = await supabase
-      .from('daily_summaries')
-      .upsert(
-        {
-          user_id: userId,
-          date: date,
-          summary: summary,
-          entry_count: transcripts.length,
-          mood_quality: moodData?.day_quality || null,
-          dominant_emotions: moodData?.emotions || null,
-          updated_at: new Date().toISOString()
-        },
-        {
-          onConflict: 'user_id,date'
-        }
-      )
-      .select()
-      .single();
-
-    if (summaryError) {
+    let summaryData: DailySummary;
+    try {
+      summaryData = await repo.upsertDailySummary(userId, date, {
+        summary,
+        entryCount: entries.length,
+        moodQuality: mood?.day_quality || null,
+        dominantEmotions: mood?.emotions || []
+      });
+    } catch (summaryError) {
+      if (summaryError instanceof NokvUnavailableError) {
+        return NextResponse.json(
+          { error: 'Data backend temporarily unavailable' },
+          { status: 503 }
+        );
+      }
       // eslint-disable-next-line no-console
       console.error('Error saving summary:', summaryError);
       return NextResponse.json(
@@ -169,7 +144,6 @@ export async function POST(request: NextRequest) {
     after(async () => {
       try {
         await syncReflectionsForDate({
-          supabase,
           openai,
           userId,
           anchorDate: date
@@ -184,7 +158,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       summary: summary,
-      entryCount: transcripts.length,
+      entryCount: entries.length,
       summaryId: summaryData.id
     });
   } catch (error) {

@@ -64,7 +64,9 @@ export function isNokvEnabled(): boolean {
   return enabledMemo;
 }
 
-function mcpArgv(): string[] {
+/** Connection/routing argv shared by the resident MCP subprocess and the
+ *  one-shot blob CLI channel (collect/materialize). */
+export function connArgv(): string[] {
   const e = process.env;
   return [
     '--root-id',
@@ -86,9 +88,12 @@ function mcpArgv(): string[] {
     '--object-secret-access-key',
     e.NOKV_OBJECT_SECRET_ACCESS_KEY!,
     '--workbench-root',
-    e.NOKV_WORKBENCH_ROOT!,
-    'mcp'
+    e.NOKV_WORKBENCH_ROOT!
   ];
+}
+
+function mcpArgv(): string[] {
+  return [...connArgv(), 'mcp'];
 }
 
 function markRuntimeDisabled(reason: unknown) {
@@ -178,14 +183,15 @@ function startProcess(): McpState {
 function rpc(
   state: McpState,
   method: string,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  timeoutMs: number = CALL_TIMEOUT_MS
 ): Promise<unknown> {
   const id = state.nextId++;
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       state.pending.delete(id);
       reject(new Error(`nokv mcp timeout: ${method}`));
-    }, CALL_TIMEOUT_MS);
+    }, timeoutMs);
     state.pending.set(id, { resolve, reject, timer });
     state.proc.stdin.write(
       JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n'
@@ -207,7 +213,8 @@ interface ToolResult {
  */
 export async function callWorkbenchTool(
   name: string,
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
+  opts?: { timeoutMs?: number }
 ): Promise<unknown | null> {
   if (!isNokvEnabled()) return null;
   if (g.__nokvDisabledUntil && Date.now() < g.__nokvDisabledUntil) return null;
@@ -226,10 +233,12 @@ export async function callWorkbenchTool(
 
   let result: ToolResult;
   try {
-    result = (await rpc(state, 'tools/call', {
-      name,
-      arguments: args
-    })) as ToolResult;
+    result = (await rpc(
+      state,
+      'tools/call',
+      { name, arguments: args },
+      opts?.timeoutMs
+    )) as ToolResult;
   } catch (err) {
     if (err instanceof NokvToolError) throw err;
     markRuntimeDisabled(err);
