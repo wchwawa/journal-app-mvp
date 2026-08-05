@@ -93,7 +93,7 @@
     "openai": "^7.3.0",
     "postcss": "8.4.49",
     "react": "19.0.0",
-    "react-day-picker": "^8.10.1",
+    "react-day-picker": "^10.0.1",
     "react-dom": "19.0.0",
     "react-dropzone": "^14.3.5",
     "react-hook-form": "^7.54.1",
