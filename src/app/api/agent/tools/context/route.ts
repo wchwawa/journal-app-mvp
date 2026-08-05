@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fetchUserContext } from '@/lib/agent/context';
 import type { ContextRequest } from '@/lib/agent/context';
 import { isTrustedOrigin } from '@/lib/security';
+import { appendToolCall } from '@/lib/nokv/session-workspace';
 
 const payloadSchema = z.object({
   scope: z
@@ -55,7 +57,26 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    const startedAt = Date.now();
     const context = await fetchUserContext(supabase, userId, payload);
+
+    // Optional NoKV trace, written after the response is sent.
+    const sessionRef = request.headers.get('x-echo-session');
+    if (sessionRef) {
+      const durationMs = Date.now() - startedAt;
+      after(() =>
+        appendToolCall(userId, sessionRef, {
+          tool: 'fetch_user_context',
+          args: payload as unknown as Record<string, unknown>,
+          resultSummary: {
+            summaries: Array.isArray(context?.summaries)
+              ? context.summaries.length
+              : null
+          },
+          durationMs
+        })
+      );
+    }
 
     return NextResponse.json({ context });
   } catch (error) {
